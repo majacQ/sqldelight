@@ -1,16 +1,13 @@
 package com.squareup.sqldelight.integration
 
-import com.squareup.sqldelight.db.SqlDriver
-import com.squareup.sqldelight.ColumnAdapter
-import com.squareup.sqldelight.Query
-import kotlin.test.AfterTest
-import kotlin.test.BeforeTest
-import kotlin.test.Test
-import kotlin.test.assertTrue
-import kotlin.test.assertEquals
-import co.touchlab.stately.freeze
 import co.touchlab.stately.concurrency.AtomicInt
 import co.touchlab.stately.concurrency.value
+import co.touchlab.stately.freeze
+import com.squareup.sqldelight.ColumnAdapter
+import com.squareup.sqldelight.Query
+import kotlin.test.BeforeTest
+import kotlin.test.Test
+import kotlin.test.assertEquals
 
 class IntegrationTests {
   private lateinit var queryWrapper: QueryWrapper
@@ -38,31 +35,31 @@ class IntegrationTests {
   @Test fun indexedArgs() {
     // ?1 is the only arg
     val person = personQueries.equivalentNames("Bob").executeAsOne()
-    assertEquals(Person.Impl(4, "Bob", "Bob"), person)
+    assertEquals(Person(4, "Bob", "Bob"), person)
   }
 
   @Test fun startIndexAtTwo() {
     // ?2 is the only arg
     val person = personQueries.equivalentNames2("Bob").executeAsOne()
-    assertEquals(Person.Impl(4, "Bob", "Bob"), person)
+    assertEquals(Person(4, "Bob", "Bob"), person)
   }
 
   @Test fun namedIndexArgs() {
     // :name is the only arg
     val person = personQueries.equivalentNamesNamed("Bob").executeAsOne()
-    assertEquals(Person.Impl(4, "Bob", "Bob"), person)
+    assertEquals(Person(4, "Bob", "Bob"), person)
   }
 
   @Test fun indexedArgLast() {
     // First arg declared is ?, second arg declared is ?1.
     val person = personQueries.indexedArgLast("Bob").executeAsOne()
-    assertEquals(Person.Impl(4, "Bob", "Bob"), person)
+    assertEquals(Person(4, "Bob", "Bob"), person)
   }
 
   @Test fun indexedArgLastTwo() {
     // First arg declared is ?, second arg declared is ?2.
     val person = personQueries.indexedArgLast2("Alec", "Strong").executeAsOne()
-    assertEquals(Person.Impl(1, "Alec", "Strong"), person)
+    assertEquals(Person(1, "Alec", "Strong"), person)
   }
 
   @Test fun nameIn() {
@@ -71,15 +68,15 @@ class IntegrationTests {
   }
 
   @Test fun selectingWithNullParams() {
-    nullableTypesQueries.insertNullableType(NullableTypes.Impl(listOf("Yo"), "Yo"))
-    nullableTypesQueries.insertNullableType(NullableTypes.Impl(null, null))
+    nullableTypesQueries.insertNullableType(NullableTypes(listOf("Yo"), "Yo"))
+    nullableTypesQueries.insertNullableType(NullableTypes(null, null))
 
     assertEquals(null, nullableTypesQueries.exprOnNullableColumn(null).executeAsOne().val1)
   }
 
   @Test fun sqliteKeywordQuery() {
     val keywords = keywordsQueries.selectAll().executeAsOne()
-    assertEquals(Group.Impl(1, 10, 20), keywords)
+    assertEquals(Group(1, 10, 20), keywords)
   }
 
   @Test fun compiledStatement() {
@@ -88,7 +85,7 @@ class IntegrationTests {
 
     var current: Long = 10
     for (group in keywordsQueries.selectAll().executeAsList()) {
-      assertEquals(current++, group.where)
+      assertEquals(current++, group.where_)
     }
     assertEquals(13, current)
   }
@@ -106,16 +103,16 @@ class IntegrationTests {
 
     var current: Long = 10
     for (group in keywordsQueries.selectAll().executeAsList()) {
-      assertEquals(current++, group.where)
+      assertEquals(current++, group.where_)
     }
     assertEquals(13, current)
   }
 
   @Test
   fun nullableColumnsUseAdapterProperly() {
-    val cool = NullableTypes.Impl(listOf("Alec", "Matt", "Jake"), "Cool")
-    val notCool = NullableTypes.Impl(null, "Not Cool")
-    val nulled = NullableTypes.Impl(null, null)
+    val cool = NullableTypes(listOf("Alec", "Matt", "Jake"), "Cool")
+    val notCool = NullableTypes(null, "Not Cool")
+    val nulled = NullableTypes(null, null)
     nullableTypesQueries.insertNullableType(cool)
     nullableTypesQueries.insertNullableType(notCool)
     nullableTypesQueries.insertNullableType(nulled)
@@ -125,8 +122,8 @@ class IntegrationTests {
 
   @Test fun multipleNameIn() {
     val people =
-        personQueries.multipleNameIn(listOf("Alec", "Jesse"), listOf("Wharton", "Precious"))
-            .executeAsList()
+      personQueries.multipleNameIn(listOf("Alec", "Jesse"), listOf("Wharton", "Precious"))
+        .executeAsList()
     assertEquals(3, people.size)
   }
 
@@ -135,8 +132,10 @@ class IntegrationTests {
   }
 
   @Test fun bigTable() {
-    val bigTable = BigTable.Impl(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
-        20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30)
+    val bigTable = BigTable(
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
+      20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30
+    )
 
     bigTableQueries.insert(bigTable)
 
@@ -175,7 +174,7 @@ class IntegrationTests {
         peopleNotified.incrementAndGet()
       }
     })
-    
+
     // Mutation which affects all of the above.
     personQueries.deleteAll()
 

@@ -18,10 +18,10 @@ package com.squareup.sqldelight.intellij.lang
 
 import com.intellij.codeInsight.generation.actions.CommentByLineCommentAction
 import com.intellij.openapi.actionSystem.IdeActions
-import com.intellij.testFramework.fixtures.LightPlatformCodeInsightFixtureTestCase
 import com.squareup.sqldelight.core.lang.SqlDelightFileType
+import com.squareup.sqldelight.intellij.SqlDelightFixtureTestCase
 
-class SqlDelightCommenterTest : LightPlatformCodeInsightFixtureTestCase() {
+class SqlDelightCommenterTest : SqlDelightFixtureTestCase() {
 
   fun testSingleLineComment() {
     myFixture.configureByText(SqlDelightFileType, "<caret>SELECT *")
@@ -46,33 +46,42 @@ class SqlDelightCommenterTest : LightPlatformCodeInsightFixtureTestCase() {
   }
 
   fun testSingleLineComment_MultipleLines() {
-    myFixture.configureByText(SqlDelightFileType, """
+    myFixture.configureByText(
+      SqlDelightFileType,
+      """
       |<selection>CREATE TABLE test (
       |  _id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
       |  title TEXT NOT NULL
       |);</selection>
-      """.trimMargin())
+      """.trimMargin()
+    )
 
     val commentAction = CommentByLineCommentAction()
     commentAction.actionPerformedImpl(project, myFixture.editor)
-    myFixture.checkResult("""
+    myFixture.checkResult(
+      """
       |-- CREATE TABLE test (
       |--   _id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
       |--   title TEXT NOT NULL
       |-- );
-      """.trimMargin())
+      """.trimMargin()
+    )
 
     commentAction.actionPerformedImpl(project, myFixture.editor)
-    myFixture.checkResult("""
+    myFixture.checkResult(
+      """
       |CREATE TABLE test (
       |  _id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
       |  title TEXT NOT NULL
       |);
-      """.trimMargin())
+      """.trimMargin()
+    )
   }
 
   fun _testJavadoc() {
-    myFixture.configureByText(SqlDelightFileType, """
+    myFixture.configureByText(
+      SqlDelightFileType,
+      """
       |CREATE TABLE test (
       |  _id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
       |  title TEXT NOT NULL
@@ -82,12 +91,14 @@ class SqlDelightCommenterTest : LightPlatformCodeInsightFixtureTestCase() {
       |select_all:
       |SELECT *
       |FROM test;
-      """.trimMargin())
+      """.trimMargin()
+    )
 
     myFixture.type("/**")
-    myFixture.performEditorAction(IdeActions.ACTION_EDITOR_ENTER);
+    myFixture.performEditorAction(IdeActions.ACTION_EDITOR_ENTER)
 
-    myFixture.checkResult("""
+    myFixture.checkResult(
+      """
       |CREATE TABLE test (
       |  _id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
       |  title TEXT NOT NULL
@@ -99,6 +110,7 @@ class SqlDelightCommenterTest : LightPlatformCodeInsightFixtureTestCase() {
       |select_all:
       |SELECT *
       |FROM test;
-      """.trimMargin())
+      """.trimMargin()
+    )
   }
 }

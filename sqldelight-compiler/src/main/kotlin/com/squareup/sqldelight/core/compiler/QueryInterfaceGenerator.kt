@@ -15,37 +15,35 @@
  */
 package com.squareup.sqldelight.core.compiler
 
-import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.FunSpec
 import com.squareup.kotlinpoet.KModifier.DATA
 import com.squareup.kotlinpoet.KModifier.OVERRIDE
-import com.squareup.kotlinpoet.KModifier.PUBLIC
 import com.squareup.kotlinpoet.MemberName
 import com.squareup.kotlinpoet.PropertySpec
 import com.squareup.kotlinpoet.TypeSpec
 import com.squareup.kotlinpoet.asClassName
 import com.squareup.kotlinpoet.joinToCode
 import com.squareup.sqldelight.core.compiler.model.NamedQuery
-import com.squareup.sqldelight.core.lang.IMPLEMENTATION_NAME
-import com.squareup.sqldelight.core.lang.psi.ColumnDefMixin.Companion.isArrayType
-import com.squareup.sqldelight.core.lang.util.sqFile
+import com.squareup.sqldelight.core.lang.psi.ColumnTypeMixin.Companion.isArrayType
 
 class QueryInterfaceGenerator(val query: NamedQuery) {
-  private fun kotlinImplementationSpec(): TypeSpec {
-    val typeSpec = TypeSpec.classBuilder(IMPLEMENTATION_NAME)
-        .addModifiers(DATA)
-        .addSuperinterface(ClassName(query.select.sqFile().packageName, query.name.capitalize()))
+  fun kotlinImplementationSpec(): TypeSpec {
+    val typeSpec = TypeSpec.classBuilder(query.name.capitalize())
+      .addModifiers(DATA)
 
     val propertyPrints = mutableListOf<CodeBlock>()
     val contentToString = MemberName("kotlin.collections", "contentToString")
+
     val constructor = FunSpec.constructorBuilder()
 
     query.resultColumns.forEach {
-      typeSpec.addProperty(PropertySpec.builder(it.name, it.javaType, OVERRIDE)
+      typeSpec.addProperty(
+        PropertySpec.builder(it.name, it.javaType)
           .initializer(it.name)
-          .build())
-      constructor.addParameter(it.name, it.javaType, OVERRIDE)
+          .build()
+      )
+      constructor.addParameter(it.name, it.javaType)
 
       propertyPrints += if (it.javaType.isArrayType) {
         CodeBlock.of("${it.name}: \${${it.name}.%M()}", contentToString)
@@ -54,29 +52,23 @@ class QueryInterfaceGenerator(val query: NamedQuery) {
       }
     }
 
-    typeSpec.addFunction(FunSpec.builder("toString")
+    typeSpec.addFunction(
+      FunSpec.builder("toString")
         .returns(String::class.asClassName())
         .addModifiers(OVERRIDE)
-        .addStatement("return %L", propertyPrints.joinToCode(
+        .addStatement(
+          "return %L",
+          propertyPrints.joinToCode(
             separator = "\n|  ",
-            prefix = "\"\"\"\n|${query.name.capitalize()}.$IMPLEMENTATION_NAME [\n|  ",
-            suffix = "\n|]\n\"\"\".trimMargin()")
+            prefix = "\"\"\"\n|${query.name.capitalize()} [\n|  ",
+            suffix = "\n|]\n\"\"\".trimMargin()"
+          )
         )
         .build()
     )
 
-    return typeSpec.primaryConstructor(constructor.build()).build()
-  }
-
-  fun kotlinInterfaceSpec(): TypeSpec {
-    val typeSpec = TypeSpec.interfaceBuilder(query.name.capitalize())
-
-    query.resultColumns.forEach {
-      typeSpec.addProperty(it.name, it.javaType, PUBLIC)
-    }
-
     return typeSpec
-        .addType(kotlinImplementationSpec())
-        .build()
+      .primaryConstructor(constructor.build())
+      .build()
   }
 }

@@ -1,8 +1,10 @@
-plugins {
-  id 'com.android.library'
-  id 'org.jetbrains.kotlin.multiplatform'
-  id 'com.squareup.sqldelight'
+buildscript {
+  apply from: "${projectDir.absolutePath}/../buildscript.gradle"
 }
+
+apply plugin: 'org.jetbrains.kotlin.multiplatform'
+apply plugin: 'com.squareup.sqldelight'
+apply plugin: 'com.android.library'
 
 apply from: '../../../../gradle/dependencies.gradle'
 
@@ -12,7 +14,6 @@ repositories {
   }
   mavenCentral()
   google()
-  jcenter()
 }
 
 android {
@@ -46,22 +47,17 @@ kotlin {
   }
 
   sourceSets {
-    commonMain {
-      dependencies {
-        implementation deps.kotlin.stdlib.common
-      }
-    }
     commonTest {
       dependencies {
         implementation deps.kotlin.test.common
         implementation deps.kotlin.test.commonAnnotations
         implementation deps.stately.core
+        implementation deps.stately.concurrency
         implementation "com.squareup.sqldelight:runtime:${com.squareup.sqldelight.VersionKt.VERSION}"
       }
     }
     androidMain {
       dependencies {
-        implementation deps.kotlin.stdlib.jdk
         implementation "com.squareup.sqldelight:sqlite-driver:${com.squareup.sqldelight.VersionKt.VERSION}"
       }
     }

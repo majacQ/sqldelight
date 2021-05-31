@@ -1,7 +1,9 @@
-plugins {
-  id 'org.jetbrains.kotlin.multiplatform'
-  id 'com.squareup.sqldelight'
+buildscript {
+  apply from: "${projectDir.absolutePath}/../buildscript.gradle"
 }
+
+apply plugin: 'org.jetbrains.kotlin.multiplatform'
+apply plugin: 'com.squareup.sqldelight'
 
 apply from: '../../../../gradle/dependencies.gradle'
 
@@ -10,10 +12,7 @@ repositories {
     url "file://${projectDir.absolutePath}/../../../../build/localMaven"
   }
   mavenCentral()
-  google()
-  jcenter()
 }
-
 
 sqldelight {
   QueryWrapper {
@@ -31,16 +30,12 @@ kotlin {
   }
 
   sourceSets {
-    commonMain {
-      dependencies {
-        implementation deps.kotlin.stdlib.common
-      }
-    }
     commonTest {
       dependencies {
         implementation deps.kotlin.test.common
         implementation deps.kotlin.test.commonAnnotations
         implementation deps.stately.core
+        implementation deps.stately.concurrency
         implementation "com.squareup.sqldelight:runtime:${com.squareup.sqldelight.VersionKt.VERSION}"
       }
     }
@@ -48,20 +43,6 @@ kotlin {
       dependencies {
         implementation "com.squareup.sqldelight:native-driver:${com.squareup.sqldelight.VersionKt.VERSION}"
       }
-    }
-  }
-}
-
-task iosTest {
-  def device = project.findProperty("iosDevice")?.toString() ?: "iPhone 8"
-  dependsOn 'linkIos'
-  group = JavaBasePlugin.VERIFICATION_GROUP
-  description = "Runs tests for target 'ios' on an iOS simulator"
-
-  doLast {
-    def binary = kotlin.targets.ios.binaries.getTest('DEBUG').outputFile
-    exec {
-      commandLine 'xcrun', 'simctl', 'spawn', '--standalone', device, binary.absolutePath
     }
   }
 }

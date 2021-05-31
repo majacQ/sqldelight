@@ -15,25 +15,32 @@
  */
 package com.squareup.sqldelight.intellij
 
+import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiDirectory
+import com.intellij.psi.PsiManager
 import com.intellij.psi.util.PsiTreeUtil
 import com.squareup.sqldelight.core.SqlDelightDatabaseProperties
 import com.squareup.sqldelight.core.SqlDelightFileIndex
 import com.squareup.sqldelight.core.lang.SqlDelightFile
 import com.squareup.sqldelight.intellij.util.isAncestorOf
-import org.jetbrains.kotlin.idea.core.util.toPsiDirectory
 import java.io.File
 
 class FileIndex(
   private val properties: SqlDelightDatabaseProperties,
-  override val contentRoot: VirtualFile
+  override val contentRoot: VirtualFile =
+    LocalFileSystem.getInstance().findFileByPath(properties.rootDirectory.absolutePath)!!
 ) : SqlDelightFileIndex {
   override val isConfigured = true
   override val packageName = properties.packageName
-  override val outputDirectory = properties.outputDirectory.replace(File.separatorChar, '/')
+  override val outputDirectory: String
+    get() {
+      return properties.outputDirectoryFile.relativeTo(File(contentRoot.path))
+        .path.replace(File.separatorChar, '/').trimEnd('/')
+    }
   override val className = properties.className
   override val dependencies = properties.dependencies
+  override val deriveSchemaFromMigrations = properties.deriveSchemaFromMigrations
 
   override fun packageName(file: SqlDelightFile): String {
     val original = if (file.parent == null) {
@@ -42,7 +49,7 @@ class FileIndex(
       file
     }
     val folder = sourceFolders(original, includeDependencies = false)
-        .firstOrNull { PsiTreeUtil.findCommonParent(original, it) != null } ?: return ""
+      .firstOrNull { PsiTreeUtil.isAncestor(it, original, false) } ?: return ""
     val folderPath = folder.virtualFile.path
     val filePath = original.virtualFile!!.path
     return filePath.substring(folderPath.length + 1, filePath.indexOf(original.name) - 1).replace('/', '.')
@@ -52,10 +59,16 @@ class FileIndex(
     file: VirtualFile,
     includeDependencies: Boolean
   ): Collection<VirtualFile> {
-    return properties.compilationUnits.map { (_, sourceSet) ->
-      sourceSet
-          .filter { includeDependencies || !it.dependency }
-          .mapNotNull { contentRoot.findFileByRelativePath(it.path) }
+    return properties.compilationUnits.map {
+      it.sourceFolders
+        .filter { includeDependencies || !it.dependency }
+        .mapNotNull {
+          contentRoot.findFileByRelativePath(
+            it.folder.relativeTo(
+              File(contentRoot.path)
+            ).path.replace(File.separatorChar, '/').trimEnd('/')
+          )
+        }
     }.fold(emptySet()) { currentSources: Collection<VirtualFile>, sourceSet ->
       if (sourceSet.any { it.isAncestorOf(file) }) {
         // File is in this source set.
@@ -75,6 +88,6 @@ class FileIndex(
     includeDependencies: Boolean
   ): Collection<PsiDirectory> {
     return sourceFolders(file.virtualFile!!, includeDependencies)
-        .map { it.toPsiDirectory(file.project)!! }
+      .map { PsiManager.getInstance(file.project).findDirectory(it)!! }
   }
 }

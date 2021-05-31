@@ -19,17 +19,30 @@ buildscript {
     classpath deps.plugins.dokka
     classpath deps.plugins.intellij
     classpath deps.plugins.android
-    classpath deps.plugins.markdown
     classpath deps.plugins.grammarKitComposer
     classpath deps.plugins.publish
+    classpath deps.plugins.spotless
+    classpath deps.plugins.changelog
 
     // Used for the sample
-    classpath "com.squareup.sqldelight:gradle-plugin:${versions.sqldelight}"
+//    classpath "com.squareup.sqldelight:gradle-plugin:${versions.sqldelight}"
   }
 }
 
+apply plugin: "com.diffplug.spotless"
+
 apply from: "$rootDir/gradle/updateDependencies.gradle"
 apply from: "$rootDir/gradle/dependencies.gradle"
+
+spotless {
+  kotlin {
+    target "**/*.kt"
+    targetExclude "**/gen/**/*.*", "**/generated/**/*.*", "sqldelight-compiler/integration-tests/src/test/kotlin/com/example/**/*.*"
+    ktlint(versions.ktlint).userData(["indent_size": "2"])
+    trimTrailingWhitespace()
+    endWithNewline()
+  }
+}
 
 allprojects {
   repositories {
@@ -45,9 +58,9 @@ allprojects {
     }
   }
 
-  if (plugins.hasPlugin("org.jetbrains.kotlin.jvm")) {
-    sourceCompatibility JavaVersion.VERSION_1_8
-    targetCompatibility JavaVersion.VERSION_1_8
+  plugins.withId("org.jetbrains.kotlin.jvm") {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
   }
 
   plugins.withId("com.android.library") {
@@ -65,20 +78,4 @@ allprojects {
 
   group = GROUP
   version = VERSION_NAME
-}
-
-def addDependency(Upload task, String groupId, String artifactId, String version, String type) {
-  task.repositories.withType(org.gradle.api.artifacts.maven.MavenDeployer) { mavenDeployer ->
-    task.doFirst {
-      mavenDeployer.pom.whenConfigured {
-        // For whatever reason we can't 'new' these ourselves. Clone an existing instance instead.
-        def dependency = it.dependencies.get(0).clone()
-        dependency.groupId = groupId
-        dependency.artifactId = artifactId
-        dependency.version = version
-        dependency.type = type
-        it.dependencies.add(dependency)
-      }
-    }
-  }
 }

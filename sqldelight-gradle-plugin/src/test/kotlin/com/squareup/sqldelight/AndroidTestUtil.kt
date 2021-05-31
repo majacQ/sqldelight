@@ -18,7 +18,6 @@ package com.squareup.sqldelight
 import java.io.File
 import java.util.Properties
 
-
 internal fun androidHome(): String {
   val env = System.getenv("ANDROID_HOME")
   if (env != null) {
@@ -36,5 +35,6 @@ internal fun androidHome(): String {
     }
   }
   throw IllegalStateException(
-      "Missing 'ANDROID_HOME' environment variable or local.properties with 'sdk.dir'")
+    "Missing 'ANDROID_HOME' environment variable or local.properties with 'sdk.dir'"
+  )
 }

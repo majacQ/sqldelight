@@ -19,10 +19,33 @@ private class QueryDataSource<RowType : Any>(
   private val countQuery: Query<Long>,
   private val transacter: Transacter
 ) : PositionalDataSource<RowType>(),
-    Query.Listener {
+  Query.Listener {
   private var query: Query<RowType>? = null
+  private val callbacks = linkedSetOf<InvalidatedCallback>()
 
   override fun queryResultsChanged() = invalidate()
+
+  override fun invalidate() {
+    query?.removeListener(this)
+    query = null
+    super.invalidate()
+  }
+
+  override fun addInvalidatedCallback(onInvalidatedCallback: InvalidatedCallback) {
+    super.addInvalidatedCallback(onInvalidatedCallback)
+    if (callbacks.isEmpty()) {
+      query?.addListener(this)
+    }
+    callbacks.add(onInvalidatedCallback)
+  }
+
+  override fun removeInvalidatedCallback(onInvalidatedCallback: InvalidatedCallback) {
+    super.removeInvalidatedCallback(onInvalidatedCallback)
+    callbacks.remove(onInvalidatedCallback)
+    if (callbacks.isEmpty()) {
+      query?.removeListener(this)
+    }
+  }
 
   override fun loadRange(
     params: LoadRangeParams,
@@ -30,7 +53,9 @@ private class QueryDataSource<RowType : Any>(
   ) {
     query?.removeListener(this)
     queryProvider(params.loadSize.toLong(), params.startPosition.toLong()).let { query ->
-      query.addListener(this)
+      if (callbacks.isNotEmpty()) {
+        query.addListener(this)
+      }
       this.query = query
       if (!isInvalid) {
         callback.onResult(query.executeAsList())
@@ -44,14 +69,16 @@ private class QueryDataSource<RowType : Any>(
   ) {
     query?.removeListener(this)
     queryProvider(params.requestedLoadSize.toLong(), params.requestedStartPosition.toLong()).let { query ->
-      query.addListener(this)
+      if (callbacks.isNotEmpty()) {
+        query.addListener(this)
+      }
       this.query = query
       if (!isInvalid) {
         transacter.transaction {
           callback.onResult(
-              /* data = */ query.executeAsList(),
-              /* position = */ params.requestedStartPosition,
-              /* totalCount = */ countQuery.executeAsOne().toInt()
+            /* data = */ query.executeAsList(),
+            /* position = */ params.requestedStartPosition,
+            /* totalCount = */ countQuery.executeAsOne().toInt()
           )
         }
       }

@@ -4,31 +4,59 @@
   <category>Custom Languages</category>
   <vendor url="https://github.com/square">Square, Inc.</vendor>
   <idea-version
-      since-build="145"
+      since-build="191"
   />
   <depends>com.intellij.modules.lang</depends>
   <depends>org.jetbrains.kotlin</depends>
 
   <description><![CDATA[
       Generates typesafe Kotlin APIs from SQL, and provides language
-      features inside for SQL inside the IDE.
+      features for SQL inside the IDE.
     ]]></description>
 
-  <!-- Plugin's project components -->
-  <project-components>
-    <component>
-      <implementation-class>com.squareup.sqldelight.intellij.SqlDelightProjectComponent</implementation-class>
-    </component>
-  </project-components>
-
   <extensions defaultExtensionNs="com.intellij">
-    <fileTypeFactory implementation="com.squareup.sqldelight.intellij.lang.SqlDelightFileTypeFactory"/>
-    <errorHandler implementation="com.squareup.sqldelight.intellij.SqlDelightErrorHandler" />
+    <!-- File-type Factory -->
+    <fileType name="SqlDelight"
+        language="SqlDelight"
+        implementationClass="com.squareup.sqldelight.core.lang.SqlDelightFileType"
+        extensions="sq"
+        fieldName="INSTANCE"/>
+
+    <fileType name="SqlDelight Migration"
+        language="SqlDelightMigration"
+        implementationClass="com.squareup.sqldelight.core.lang.MigrationFileType"
+        extensions="sqm"
+        fieldName="INSTANCE"/>
+
+    <fileType name="SqlDelight Database"
+        implementationClass="com.squareup.sqldelight.core.lang.DatabaseFileType"
+        extensions="db"
+        fieldName="INSTANCE"/>
+    <fileType.fileViewProviderFactory
+        filetype="SqlDelight Database"
+        implementationClass="com.squareup.sqldelight.core.lang.DatabaseFileViewProviderFactory"/>
+
+    <internalFileTemplate name="SqlDelight File"/>
+    <internalFileTemplate name="SqlDelight Table"/>
+    <internalFileTemplate name="SqlDelight Migration"/>
+
+    <externalSystemTaskNotificationListener
+        implementation="com.squareup.sqldelight.intellij.GradleSystemListener"/>
+
+    <defaultLiveTemplatesProvider implementation="com.squareup.sqldelight.intellij.SqlDelightLiveTemplatesProvider"/>
+    <liveTemplateContext implementation="com.squareup.sqldelight.intellij.SqlDelightLiveTemplateContextType"/>
+
+    <fileIconProvider implementation="com.squareup.sqldelight.intellij.SqlDelightFileIconProvider" />
+    <errorHandler implementation="com.squareup.sqldelight.intellij.SqlDelightErrorHandler"/>
+
+    <stubIndex implementation="com.alecstrong.sql.psi.core.psi.SchemaContributorIndexImpl"/>
+    <stubElementTypeHolder class="com.alecstrong.sql.psi.core.psi.SqlTypes"/>
+    <stubElementTypeHolder class="com.alecstrong.sql.psi.core.sqlite_3_18.psi.SqliteTypes"/>
 
     <annotator language="SqlDelight"
-        implementationClass="com.alecstrong.sql.psi.core.SqlAnnotator" />
+        implementationClass="com.alecstrong.sql.psi.core.SqlAnnotator"/>
     <annotator language="SqlDelight"
-        implementationClass="com.squareup.sqldelight.intellij.SqlDelightClassNameElementAnnotator" />
+        implementationClass="com.squareup.sqldelight.intellij.SqlDelightClassNameElementAnnotator"/>
     <completion.contributor language="SqlDelight"
         implementationClass="com.squareup.sqldelight.intellij.SqlDelightClassCompletionContributor"/>
     <gotoDeclarationHandler
@@ -43,8 +71,6 @@
         language="SqlDelight"/>
     <lang.parserDefinition language="SqlDelight"
         implementationClass="com.squareup.sqldelight.core.lang.SqlDelightParserDefinition"/>
-    <!-- <lang.parserDefinition language="SqlDelightMigration"
-        implementationClass="com.squareup.sqldelight.core.lang.MigrationParserDefinition"/> -->
     <lang.syntaxHighlighterFactory language="SqlDelight"
         implementationClass="com.squareup.sqldelight.intellij.lang.SqlDelightSyntaxHighlighterFactory"/>
     <lang.commenter language="SqlDelight"
@@ -57,16 +83,21 @@
         implementationClass="com.squareup.sqldelight.intellij.lang.SqlDelightStructureViewFactory"/>
     <lang.braceMatcher language="SqlDelight"
         implementationClass="com.squareup.sqldelight.intellij.lang.SqlDelightPairedBraceMatcher"/>
-
-    <moduleService serviceInterface="com.squareup.sqldelight.core.SqlDelightFileIndex"
-        serviceImplementation="com.squareup.sqldelight.intellij.FileIndex" />
+    <lang.refactoringSupport language="SqlDelight"
+        implementationClass="com.squareup.sqldelight.intellij.SqlDelightRefactoringSupportProvider"/>
 
     <projectService serviceInterface="com.squareup.sqldelight.core.SqlDelightProjectService"
-        serviceImplementation="com.squareup.sqldelight.intellij.ProjectService" />
+        serviceImplementation="com.squareup.sqldelight.intellij.ProjectService"/>
 
     <!-- Migration Extensions -->
     <lang.syntaxHighlighterFactory language="SqlDelightMigration"
         implementationClass="com.squareup.sqldelight.intellij.lang.SqlDelightSyntaxHighlighterFactory"/>
+    <lang.fileViewProviderFactory language="SqlDelightMigration"
+        implementationClass="com.squareup.sqldelight.intellij.lang.SqlDelightFileViewProviderFactory"/>
+    <lang.commenter language="SqlDelightMigration"
+        implementationClass="com.squareup.sqldelight.intellij.lang.SqlDelightCommenter"/>
+    <lang.parserDefinition language="SqlDelightMigration"
+        implementationClass="com.squareup.sqldelight.core.lang.MigrationParserDefinition"/>
 
     <intentionAction>
       <className>com.squareup.sqldelight.intellij.intentions.ExpandColumnNamesWildcardQuickFix</className>
@@ -79,6 +110,10 @@
       <add-to-group group-id="CutCopyPasteGroup" anchor="after" relative-to-action="$Copy"/>
       <add-to-group group-id="EditorPopupMenu" anchor="after" relative-to-action="$Copy"/>
       <keyboard-shortcut keymap="Mac OS X" first-keystroke="control shift C"/>
+    </action>
+    <action id="SqlDelight.NewFile"
+        class="com.squareup.sqldelight.intellij.actions.file.SqlDelightCreateFileAction">
+      <add-to-group group-id="NewGroup" anchor="before" relative-to-action="NewFile"/>
     </action>
   </actions>
 </idea-plugin>

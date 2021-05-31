@@ -166,7 +166,7 @@ abstract class TransacterTest {
   @Test fun `setting no enclosing fails if there is a currently running transaction`() {
     transacter.transaction(noEnclosing = true) {
       try {
-        transacter!!.transaction(noEnclosing = true) {
+        transacter.transaction(noEnclosing = true) {
           throw AssertionError()
         }
         throw AssertionError()
@@ -192,5 +192,24 @@ abstract class TransacterTest {
       assertTrue("Exception thrown in body not in message($e)") { e.toString().contains("ExceptionA") }
       assertTrue("Exception thrown in rollback not in message($e)") { e.toString().contains("ExceptionB") }
     }
+  }
+
+  @Test
+  fun `we can return a value from a transaction`() {
+    val result: String = transacter.transactionWithResult {
+      return@transactionWithResult "sup"
+    }
+
+    assertEquals(result, "sup")
+  }
+
+  @Test
+  fun `we can rollback with value from a transaction`() {
+    val result: String = transacter.transactionWithResult {
+      rollback("rollback")
+      return@transactionWithResult "sup"
+    }
+
+    assertEquals(result, "rollback")
   }
 }

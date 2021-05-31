@@ -3,7 +3,7 @@ package com.squareup.sqldelight.gradle
 import com.squareup.sqldelight.VERSION
 import com.squareup.sqldelight.core.SqlDelightDatabaseProperties
 import com.squareup.sqldelight.core.SqlDelightEnvironment
-import com.squareup.sqldelight.core.lang.SqlDelightFile
+import com.squareup.sqldelight.core.lang.SqlDelightQueriesFile
 import com.squareup.sqldelight.core.lang.util.forInitializationStatements
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.FileTree
@@ -17,36 +17,36 @@ import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.SkipWhenEmpty
-import org.gradle.api.tasks.SourceTask
 import org.gradle.api.tasks.TaskAction
 import org.gradle.workers.WorkAction
 import org.gradle.workers.WorkParameters
-import org.gradle.workers.WorkerExecutor
 import java.io.File
+import java.sql.Connection
 import java.sql.DriverManager
-import javax.inject.Inject
+import java.sql.SQLException
 
+@Suppress("UnstableApiUsage") // Worker API
 @CacheableTask
-abstract class GenerateSchemaTask : SourceTask() {
+abstract class GenerateSchemaTask : SqlDelightWorkerTask() {
   @Suppress("unused") // Required to invalidate the task on version updates.
   @Input val pluginVersion = VERSION
-
-  @get:Inject
-  abstract val workerExecutor: WorkerExecutor
 
   @get:OutputDirectory
   var outputDirectory: File? = null
 
   @Internal lateinit var sourceFolders: Iterable<File>
-  @Internal @Input lateinit var properties: SqlDelightDatabaseProperties
+  @Input lateinit var properties: SqlDelightDatabaseProperties
+
+  @Input var verifyMigrations: Boolean = false
 
   @TaskAction
   fun generateSchemaFile() {
-    workerExecutor.noIsolation().submit(GenerateSchema::class.java) {
+    workQueue().submit(GenerateSchema::class.java) {
       it.sourceFolders.set(sourceFolders.filter(File::exists))
       it.outputDirectory.set(outputDirectory)
       it.moduleName.set(project.name)
-      it.propertiesJson.set(properties.toJson())
+      it.properties.set(properties)
+      it.verifyMigrations.set(verifyMigrations)
     }
   }
 
@@ -61,16 +61,18 @@ abstract class GenerateSchemaTask : SourceTask() {
     val sourceFolders: ListProperty<File>
     val outputDirectory: DirectoryProperty
     val moduleName: Property<String>
-    val propertiesJson: Property<String>
+    val properties: Property<SqlDelightDatabaseProperties>
+    val verifyMigrations: Property<Boolean>
   }
 
   abstract class GenerateSchema : WorkAction<GenerateSchemaWorkParameters> {
     override fun execute() {
       val environment = SqlDelightEnvironment(
-          sourceFolders = parameters.sourceFolders.get(),
-          dependencyFolders = emptyList(),
-          moduleName = parameters.moduleName.get(),
-          properties = SqlDelightDatabaseProperties.fromText(parameters.propertiesJson.get())!!
+        sourceFolders = parameters.sourceFolders.get(),
+        dependencyFolders = emptyList(),
+        moduleName = parameters.moduleName.get(),
+        properties = parameters.properties.get(),
+        verifyMigrations = parameters.verifyMigrations.get()
       )
 
       var maxVersion = 1
@@ -79,12 +81,25 @@ abstract class GenerateSchemaTask : SourceTask() {
       }
 
       val outputDirectory = parameters.outputDirectory.get().asFile
-      DriverManager.getConnection("jdbc:sqlite:$outputDirectory/$maxVersion.db").use { connection ->
-        val sourceFiles = ArrayList<SqlDelightFile>()
-        environment.forSourceFiles { file -> sourceFiles.add(file as SqlDelightFile) }
+      File("$outputDirectory/$maxVersion.db").apply {
+        if (exists()) delete()
+      }
+      createConnection("$outputDirectory/$maxVersion.db").use { connection ->
+        val sourceFiles = ArrayList<SqlDelightQueriesFile>()
+        environment.forSourceFiles { file ->
+          if (file is SqlDelightQueriesFile) sourceFiles.add(file)
+        }
         sourceFiles.forInitializationStatements { sqlText ->
           connection.prepareStatement(sqlText).execute()
         }
+      }
+    }
+
+    private fun createConnection(path: String): Connection {
+      return try {
+        DriverManager.getConnection("jdbc:sqlite:$path")
+      } catch (e: SQLException) {
+        DriverManager.getConnection("jdbc:sqlite:$path")
       }
     }
   }

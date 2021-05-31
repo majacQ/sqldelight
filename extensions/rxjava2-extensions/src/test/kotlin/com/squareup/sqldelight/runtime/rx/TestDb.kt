@@ -31,7 +31,7 @@ class TestDb(
     manager(eveId, aliceId)
   }
 
-  fun <T: Any> createQuery(key: String, query: String, mapper: (SqlCursor) -> T): Query<T> {
+  fun <T : Any> createQuery(key: String, query: String, mapper: (SqlCursor) -> T): Query<T> {
     return object : Query<T>(queries.getOrPut(key, { copyOnWriteList() }), mapper) {
       override fun execute(): SqlCursor {
         return db.executeQuery(null, query, 0)
@@ -40,7 +40,7 @@ class TestDb(
   }
 
   fun notify(key: String) {
-    queries[key]?.let { notifyQueries(key.hashCode(), {it}) }
+    queries[key]?.let { notifyQueries(key.hashCode(), { it }) }
   }
 
   fun close() {
@@ -48,34 +48,42 @@ class TestDb(
   }
 
   fun employee(employee: Employee): Long {
-    db.execute(0, """
+    db.execute(
+      0,
+      """
       |INSERT OR FAIL INTO $TABLE_EMPLOYEE (${Employee.USERNAME}, ${Employee.NAME})
       |VALUES (?, ?)
-      |""".trimMargin(), 2) {
+      |""".trimMargin(),
+      2
+    ) {
       bindString(1, employee.username)
       bindString(2, employee.name)
     }
     notify(TABLE_EMPLOYEE)
     return db.executeQuery(2, "SELECT last_insert_rowid()", 0)
-        .apply { next() }
-        .getLong(0)!!
+      .apply { next() }
+      .getLong(0)!!
   }
 
   fun manager(
     employeeId: Long,
     managerId: Long
   ): Long {
-    db.execute(1, """
+    db.execute(
+      1,
+      """
       |INSERT OR FAIL INTO $TABLE_MANAGER (${Manager.EMPLOYEE_ID}, ${Manager.MANAGER_ID})
       |VALUES (?, ?)
-      |""".trimMargin() , 2) {
+      |""".trimMargin(),
+      2
+    ) {
       bindLong(1, employeeId)
       bindLong(2, managerId)
     }
     notify(TABLE_MANAGER)
     return db.executeQuery(2, "SELECT last_insert_rowid()", 0)
-        .apply { next() }
-        .getLong(0)!!
+      .apply { next() }
+      .getLong(0)!!
   }
 
   companion object {

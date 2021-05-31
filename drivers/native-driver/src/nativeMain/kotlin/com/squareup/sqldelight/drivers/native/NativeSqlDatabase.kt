@@ -22,6 +22,7 @@ import com.squareup.sqldelight.drivers.native.util.cleanUp
 
 sealed class ConnectionWrapper : SqlDriver {
   internal abstract fun <R> accessConnection(
+    useTransactionPool: Boolean,
     block: ThreadConnection.() -> R
   ): R
 
@@ -31,7 +32,7 @@ sealed class ConnectionWrapper : SqlDriver {
     parameters: Int,
     binders: (SqlPreparedStatement.() -> Unit)?
   ) {
-    accessConnection {
+    accessConnection(true) {
       val statement = getStatement(identifier, sql)
       if (binders != null) {
         try {
@@ -54,8 +55,8 @@ sealed class ConnectionWrapper : SqlDriver {
     sql: String,
     parameters: Int,
     binders: (SqlPreparedStatement.() -> Unit)?
-  ) : SqlCursor {
-    return accessConnection {
+  ): SqlCursor {
+    return accessConnection(false) {
       val statement = getStatement(identifier, sql)
 
       if (binders != null) {
@@ -106,34 +107,34 @@ sealed class ConnectionWrapper : SqlDriver {
 class NativeSqliteDriver(
   private val databaseManager: DatabaseManager
 ) : ConnectionWrapper(),
-    SqlDriver {
+  SqlDriver {
 
   constructor(
     configuration: DatabaseConfiguration
   ) : this(
-      databaseManager = createDatabaseManager(configuration)
+    databaseManager = createDatabaseManager(configuration)
   )
 
   constructor(
     schema: SqlDriver.Schema,
     name: String
   ) : this(
-      configuration = DatabaseConfiguration(
-          name = name,
-          version = schema.version,
-          create = { connection ->
-            wrapConnection(connection) { schema.create(it) }
-          },
-          upgrade = { connection, oldVersion, newVersion ->
-            wrapConnection(connection) { schema.migrate(it, oldVersion, newVersion) }
-          }
-      )
+    configuration = DatabaseConfiguration(
+      name = name,
+      version = schema.version,
+      create = { connection ->
+        wrapConnection(connection) { schema.create(it) }
+      },
+      upgrade = { connection, oldVersion, newVersion ->
+        wrapConnection(connection) { schema.migrate(it, oldVersion, newVersion) }
+      }
+    )
   )
 
   // Once a transaction is started and connection borrowed, it will be here, but only for that
   // thread
   private val borrowedConnectionThread =
-      ThreadLocalRef<SinglePool<ThreadConnection>.Borrowed>()
+    ThreadLocalRef<SinglePool<ThreadConnection>.Borrowed>()
 
   // Connection used by all operations not in a transaction
   internal val queryPool = SinglePool {
@@ -157,7 +158,7 @@ class NativeSqliteDriver(
       try {
         val trans = borrowed.entry.newTransaction()
         borrowedConnectionThread.value =
-            borrowed.freeze() // Probably don't need to freeze, but revisit.
+          borrowed.freeze() // Probably don't need to freeze, but revisit.
         trans
       } catch (e: Throwable) {
         // Unlock on failure.
@@ -172,12 +173,16 @@ class NativeSqliteDriver(
   /**
    * If we're in a transaction, then I have a connection. Otherwise use shared.
    */
-  override fun <R> accessConnection(block: ThreadConnection.() -> R): R {
+  override fun <R> accessConnection(useTransactionPool: Boolean, block: ThreadConnection.() -> R): R {
     val mine = borrowedConnectionThread.get()
     return if (mine != null) {
       mine.entry.block()
     } else {
-      queryPool.access { it.block() }
+      if (useTransactionPool) {
+        transactionPool.access { it.block() }
+      } else {
+        queryPool.access { it.block() }
+      }
     }
   }
 
@@ -214,12 +219,13 @@ fun wrapConnection(
 internal class SqliterWrappedConnection(
   private val threadConnection: ThreadConnection
 ) : ConnectionWrapper(),
-    SqlDriver {
+  SqlDriver {
   override fun currentTransaction(): Transacter.Transaction? = threadConnection.transaction.value
 
   override fun newTransaction(): Transacter.Transaction = threadConnection.newTransaction()
 
   override fun <R> accessConnection(
+    useTransactionPool: Boolean,
     block: ThreadConnection.() -> R
   ): R = threadConnection.block()
 
@@ -248,9 +254,7 @@ internal class ThreadConnection(
   internal val statementCache = frozenHashMap<Int, Statement>() as SharedHashMap<Int, Statement>
 
   fun safePut(identifier: Int?, statement: Statement) {
-    if (!inUseStatements.remove(statement)) {
-      throw IllegalStateException("Tried to recollect a statement that is not currently in use")
-    }
+    check(inUseStatements.remove(statement)) { "Tried to recollect a statement that is not currently in use" }
 
     val removed = if (identifier == null) {
       statement
@@ -283,7 +287,7 @@ internal class ThreadConnection(
   fun newTransaction(): Transacter.Transaction {
     val enclosing = transaction.value
 
-    //Create here, in case we bomb...
+    // Create here, in case we bomb...
     if (enclosing == null) {
       connection.beginTransaction()
     }
@@ -319,7 +323,7 @@ internal class ThreadConnection(
     override val enclosingTransaction: Transacter.Transaction?
   ) : Transacter.Transaction() {
     override fun endTransaction(successful: Boolean) {
-      //This stays here to avoid a race condition with multiple threads and transactions
+      // This stays here to avoid a race condition with multiple threads and transactions
       transaction.value = enclosingTransaction
 
       if (enclosingTransaction == null) {
@@ -330,7 +334,7 @@ internal class ThreadConnection(
 
           connection.endTransaction()
         } finally {
-          //Release if we have
+          // Release if we have
           borrowedConnectionThread?.let {
             it.get()?.release()
             it.value = null

@@ -35,13 +35,13 @@ class CopyAsSqliteAction : AnAction() {
 
   override fun update(e: AnActionEvent) {
     e.presentation.isVisible =
-        e.getData(PlatformDataKeys.VIRTUAL_FILE)?.extension == SqlDelightFileType.defaultExtension
-            && e.sqlElementAtCaret() != null
+      e.getData(PlatformDataKeys.VIRTUAL_FILE)?.extension == SqlDelightFileType.defaultExtension &&
+      e.sqlElementAtCaret() != null
   }
 
   private fun AnActionEvent.sqlElementAtCaret(): SqlStmt? {
     val caret = getData(LangDataKeys.CARET)
-        ?: return getData(LangDataKeys.PSI_ELEMENT)?.getStrictParentOfType()
+      ?: return getData(LangDataKeys.PSI_ELEMENT)?.getStrictParentOfType()
     val file = (getData(LangDataKeys.PSI_FILE) as? SqlDelightFile)
     return file?.findElementAt(caret.offset)?.getStrictParentOfType()
   }

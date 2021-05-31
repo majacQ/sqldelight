@@ -15,9 +15,8 @@ external val initSqlJs: InitSqlJsStatic
 
 @Suppress("UNUSED_VARIABLE", "UNUSED_PARAMETER")
 fun createInstance(type: dynamic, vararg args: dynamic): dynamic {
-    val argsArray = (listOf(null) + args).toTypedArray()
-    return js("new (Function.prototype.bind.apply(type, argsArray))")
+  val argsArray = (listOf(null) + args).toTypedArray()
+  return js("new (Function.prototype.bind.apply(type, argsArray))")
 }
 
 fun initDb(config: Config? = js("{}")): Promise<Database> = initSqlJs(config).then { it.Database() }
-

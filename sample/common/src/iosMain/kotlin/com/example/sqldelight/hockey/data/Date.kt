@@ -1,7 +1,9 @@
 package com.example.sqldelight.hockey.data
 
 import com.squareup.sqldelight.ColumnAdapter
-import platform.Foundation.*
+import platform.Foundation.NSCalendar
+import platform.Foundation.NSDate
+import platform.Foundation.NSDateComponents
 import kotlin.math.floor
 
 actual class Date internal constructor(internal val nsDate: NSDate) {
@@ -19,8 +21,8 @@ internal fun partsToDate(year: Int, month: Int, day: Int): NSDate {
 
 actual class DateAdapter actual constructor() : ColumnAdapter<Date, Long> {
   override fun decode(databaseValue: Long): Date =
-      Date(NSDate.dateWithTimeIntervalSince1970(databaseValue.toDouble() / 1000))
+    Date(NSDate.dateWithTimeIntervalSince1970(databaseValue.toDouble() / 1000))
 
   override fun encode(value: Date): Long =
-      floor(value.nsDate.timeIntervalSince1970 * 1000L).toLong()
+    floor(value.nsDate.timeIntervalSince1970 * 1000L).toLong()
 }

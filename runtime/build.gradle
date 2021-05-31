@@ -7,31 +7,16 @@ configurations {
 
 kotlin {
   sourceSets {
-    commonMain {
-      dependencies {
-        implementation deps.kotlin.stdlib.common
-      }
-    }
     commonTest {
       dependencies {
         implementation deps.kotlin.test.common
         implementation deps.kotlin.test.commonAnnotations
       }
     }
-    jvmMain {
-      dependencies {
-        implementation deps.kotlin.stdlib.jdk
-      }
-    }
     jvmTest {
       dependencies {
         implementation deps.kotlin.test.junit
         implementation deps.stately.collections
-      }
-    }
-    jsMain {
-      dependencies {
-        implementation deps.kotlin.stdlib.js
       }
     }
     jsTest {
@@ -81,17 +66,3 @@ kotlin {
 }
 
 apply from: "$rootDir/gradle/gradle-mvn-push.gradle"
-
-task iosTest {
-  def device = project.findProperty("iosDevice")?.toString() ?: "iPhone 8"
-  dependsOn 'linkIosX64'
-  group = JavaBasePlugin.VERIFICATION_GROUP
-  description = "Runs tests for target 'ios' on an iOS simulator"
-
-  doLast {
-    def binary = kotlin.targets.iosX64.binaries.getTest("DEBUG").outputDirectory.listFiles()[0]
-    exec {
-      commandLine 'xcrun', 'simctl', 'spawn', '--standalone', device, binary
-    }
-  }
-}

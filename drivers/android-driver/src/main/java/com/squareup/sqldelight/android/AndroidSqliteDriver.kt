@@ -48,13 +48,15 @@ class AndroidSqliteDriver private constructor(
     cacheSize: Int = DEFAULT_CACHE_SIZE,
     useNoBackupDirectory: Boolean = false
   ) : this(
-      database = null,
-      openHelper = factory.create(SupportSQLiteOpenHelper.Configuration.builder(context)
-          .callback(callback)
-          .name(name)
-          .noBackupDirectory(useNoBackupDirectory)
-          .build()),
-      cacheSize = cacheSize
+    database = null,
+    openHelper = factory.create(
+      SupportSQLiteOpenHelper.Configuration.builder(context)
+        .callback(callback)
+        .name(name)
+        .noBackupDirectory(useNoBackupDirectory)
+        .build()
+    ),
+    cacheSize = cacheSize
   )
 
   @JvmOverloads constructor(
@@ -110,7 +112,7 @@ class AndroidSqliteDriver private constructor(
     result: AndroidStatement.() -> T
   ): T {
     var statement: AndroidStatement? = null
-    if (identifier != null){
+    if (identifier != null) {
       statement = statements.remove(identifier)
     }
     if (statement == null) {
@@ -173,20 +175,20 @@ internal interface AndroidStatement : SqlPreparedStatement {
 private class AndroidPreparedStatement(
   private val statement: SupportSQLiteStatement
 ) : AndroidStatement {
-  override fun bindBytes(index: Int, bytes: ByteArray?) {
-    if (bytes == null) statement.bindNull(index) else statement.bindBlob(index, bytes)
+  override fun bindBytes(index: Int, value: ByteArray?) {
+    if (value == null) statement.bindNull(index) else statement.bindBlob(index, value)
   }
 
-  override fun bindLong(index: Int, long: Long?) {
-    if (long == null) statement.bindNull(index) else statement.bindLong(index, long)
+  override fun bindLong(index: Int, value: Long?) {
+    if (value == null) statement.bindNull(index) else statement.bindLong(index, value)
   }
 
-  override fun bindDouble(index: Int, double: Double?) {
-    if (double == null) statement.bindNull(index) else statement.bindDouble(index, double)
+  override fun bindDouble(index: Int, value: Double?) {
+    if (value == null) statement.bindNull(index) else statement.bindDouble(index, value)
   }
 
-  override fun bindString(index: Int, string: String?) {
-    if (string == null) statement.bindNull(index) else statement.bindString(index, string)
+  override fun bindString(index: Int, value: String?) {
+    if (value == null) statement.bindNull(index) else statement.bindString(index, value)
   }
 
   override fun executeQuery() = throw UnsupportedOperationException()

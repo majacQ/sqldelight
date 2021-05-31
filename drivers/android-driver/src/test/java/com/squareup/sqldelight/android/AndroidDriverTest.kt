@@ -59,7 +59,6 @@ class AndroidDriverTest : DriverTest() {
       bindable.execute()
       throw AssertionError("Expected an IllegalStateException (attempt to re-open an already-closed object)")
     } catch (ignored: IllegalStateException) {
-
     }
   }
 
@@ -67,11 +66,11 @@ class AndroidDriverTest : DriverTest() {
   fun `uses no backup directory`() {
     val factory = AssertableSupportSQLiteOpenHelperFactory()
     val driver = AndroidSqliteDriver(
-            schema = schema,
-            context = RuntimeEnvironment.application,
-            factory = factory,
-            name = "name",
-            useNoBackupDirectory = true
+      schema = schema,
+      context = RuntimeEnvironment.application,
+      factory = factory,
+      name = "name",
+      useNoBackupDirectory = true
     )
 
     assertTrue(factory.lastConfiguration.useNoBackupDirectory)
@@ -82,10 +81,10 @@ class AndroidDriverTest : DriverTest() {
   fun `uses backup directory`() {
     val factory = AssertableSupportSQLiteOpenHelperFactory()
     val driver = AndroidSqliteDriver(
-            schema = schema,
-            context = RuntimeEnvironment.application,
-            factory = factory,
-            useNoBackupDirectory = false
+      schema = schema,
+      context = RuntimeEnvironment.application,
+      factory = factory,
+      useNoBackupDirectory = false
     )
 
     assertFalse(factory.lastConfiguration.useNoBackupDirectory)

@@ -4,7 +4,6 @@ kotlin {
   sourceSets {
     commonMain {
       dependencies {
-        implementation deps.kotlin.stdlib.common
         api project (':runtime')
       }
     }
@@ -48,20 +47,6 @@ kotlin {
     compilations.test.source(sourceSets.nativeTest)
     compilations.test {
       kotlinOptions.freeCompilerArgs += ["-linker-options", "-lsqlite3"]
-    }
-  }
-}
-
-task iosTest {
-  def device = project.findProperty("iosDevice")?.toString() ?: "iPhone 8"
-  dependsOn 'linkIosX64'
-  group = JavaBasePlugin.VERIFICATION_GROUP
-  description = "Runs tests for target 'ios' on an iOS simulator"
-
-  doLast {
-    def binary = kotlin.targets.iosX64.binaries.getTest("DEBUG").outputDirectory.listFiles()[0]
-    exec {
-      commandLine 'xcrun', 'simctl', 'spawn', '--standalone', device, binary
     }
   }
 }

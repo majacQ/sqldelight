@@ -4,6 +4,7 @@ import com.alecstrong.sql.psi.core.psi.SqlTableName
 import com.alecstrong.sql.psi.core.psi.SqlViewName
 import com.intellij.psi.PsiClass
 import com.intellij.psi.PsiElement
+import com.intellij.psi.PsiManager
 import com.intellij.psi.PsiReference
 import com.intellij.refactoring.listeners.RefactoringElementListener
 import com.intellij.refactoring.rename.RenamePsiElementProcessor
@@ -12,14 +13,14 @@ import com.squareup.sqldelight.core.SqlDelightFileIndex
 import com.squareup.sqldelight.core.lang.SqlDelightFile
 import com.squareup.sqldelight.core.lang.psi.StmtIdentifier
 import com.squareup.sqldelight.core.lang.psi.StmtIdentifierMixin
-import org.jetbrains.kotlin.idea.core.util.toPsiFile
 import org.jetbrains.kotlin.idea.util.module
 import org.jetbrains.kotlin.psi.KtFile
 
 class SqlDelightRenameProcessor : RenamePsiElementProcessor() {
   override fun canProcessElement(element: PsiElement): Boolean {
-    if (element.module == null
-        || !SqlDelightFileIndex.getInstance(element.module!!).isConfigured) {
+    if (element.module == null ||
+      !SqlDelightFileIndex.getInstance(element.module!!).isConfigured
+    ) {
       return false
     }
     return when (element) {
@@ -43,11 +44,11 @@ class SqlDelightRenameProcessor : RenamePsiElementProcessor() {
     }.capitalize()
     element.generatedTypes(currentTypeName).forEach { type ->
       element.references(type)
-          .filter { it.element.containingFile.virtualFile != type.containingFile }
-          .forEach { reference ->
-            val currentName = reference.element.text
-            reference.handleElementRename(currentName.replace(currentTypeName, newTypeName))
-          }
+        .filter { it.element.containingFile.virtualFile != type.containingFile }
+        .forEach { reference ->
+          val currentName = reference.element.text
+          reference.handleElementRename(currentName.replace(currentTypeName, newTypeName))
+        }
     }
     super.renameElement(element, newName, usages, listener)
   }
@@ -60,15 +61,15 @@ class SqlDelightRenameProcessor : RenamePsiElementProcessor() {
   private fun PsiElement.references(element: PsiElement): Collection<PsiReference> {
     val processor = RenamePsiElementProcessor.forElement(element)
     return processor.findReferences(element)
-        .filter { it.element.containingFile.virtualFile != generatedFile() }
+      .filter { it.element.containingFile.virtualFile != generatedFile() }
   }
 
   private fun PsiElement.generatedTypes(name: String): Array<PsiClass> {
     val path = (containingFile as SqlDelightFile).let { "${it.generatedDir}/$name.kt" }
     val module = module ?: return emptyArray()
-    val file = SqlDelightFileIndex.getInstance(module).contentRoot
-        .findFileByRelativePath(path)?.toPsiFile(project) as? KtFile ?: return emptyArray()
+    val vFile = SqlDelightFileIndex.getInstance(module).contentRoot
+      .findFileByRelativePath(path) ?: return emptyArray()
+    val file = PsiManager.getInstance(project).findFile(vFile) as? KtFile ?: return emptyArray()
     return file.classes
   }
 }
-

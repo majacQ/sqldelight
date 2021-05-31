@@ -1,9 +1,9 @@
-plugins {
-  id 'org.jetbrains.kotlin.multiplatform'
-  id 'com.squareup.sqldelight'
+buildscript {
+  apply from: "${projectDir.absolutePath}/../buildscript.gradle"
 }
 
-apply from: '../../../../gradle/dependencies.gradle'
+apply plugin: 'org.jetbrains.kotlin.multiplatform'
+apply plugin: 'com.squareup.sqldelight'
 
 repositories {
   maven {
@@ -19,23 +19,6 @@ sqldelight {
 }
 
 kotlin {
-  sourceSets {
-    commonMain {
-      dependencies {
-        implementation deps.kotlin.stdlib.common
-      }
-    }
-    jvmMain {
-      dependencies {
-        implementation deps.kotlin.stdlib.jdk
-      }
-    }
-    jsMain {
-      dependencies {
-        implementation deps.kotlin.stdlib.js
-      }
-    }
-  }
   targetFromPreset(presets.jvm, 'jvm')
   targetFromPreset(presets.js, 'js')
   targetFromPreset(presets.iosArm32, 'iosArm32') {

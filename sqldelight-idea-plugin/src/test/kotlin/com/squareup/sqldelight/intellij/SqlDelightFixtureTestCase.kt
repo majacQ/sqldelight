@@ -20,13 +20,14 @@ import com.alecstrong.sql.psi.core.DialectPreset
 import com.intellij.openapi.project.rootManager
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiDirectory
-import com.intellij.testFramework.fixtures.LightCodeInsightFixtureTestCase
+import com.intellij.testFramework.fixtures.LightJavaCodeInsightFixtureTestCase
 import com.squareup.sqldelight.core.SqlDelightDatabaseName
 import com.squareup.sqldelight.core.SqlDelightFileIndex
 import com.squareup.sqldelight.core.SqldelightParserUtil
 import com.squareup.sqldelight.core.lang.SqlDelightFile
+import com.squareup.sqldelight.intellij.gradle.FileIndexMap
 
-abstract class SqlDelightFixtureTestCase : LightCodeInsightFixtureTestCase() {
+abstract class SqlDelightFixtureTestCase : LightJavaCodeInsightFixtureTestCase() {
   protected val sqldelightDir = "main/sqldelight/com/sample"
 
   open val fixtureDirectory: String = ""
@@ -37,10 +38,10 @@ abstract class SqlDelightFixtureTestCase : LightCodeInsightFixtureTestCase() {
     super.setUp()
     DialectPreset.SQLITE_3_18.setup()
     SqldelightParserUtil.overrideSqlParser()
-    SqlDelightFileIndex.setInstance(module, FileIndex())
+    FileIndexMap.defaultIndex = LightFileIndex()
   }
 
-  inner class FileIndex : SqlDelightFileIndex {
+  inner class LightFileIndex : SqlDelightFileIndex {
     override val isConfigured = true
     override val packageName = "com.example"
     override val className = "MyDatabase"
@@ -48,6 +49,7 @@ abstract class SqlDelightFixtureTestCase : LightCodeInsightFixtureTestCase() {
     override val contentRoot = module.rootManager.contentRoots.single()
     override val outputDirectory = ""
     override val dependencies = emptyList<SqlDelightDatabaseName>()
+    override val deriveSchemaFromMigrations = false
 
     override fun sourceFolders(
       file: SqlDelightFile,

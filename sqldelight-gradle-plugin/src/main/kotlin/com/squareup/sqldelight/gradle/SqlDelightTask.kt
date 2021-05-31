@@ -20,10 +20,13 @@ import com.squareup.sqldelight.core.SqlDelightDatabaseProperties
 import com.squareup.sqldelight.core.SqlDelightEnvironment
 import com.squareup.sqldelight.core.SqlDelightEnvironment.CompilationStatus.Failure
 import com.squareup.sqldelight.core.SqlDelightException
-import com.squareup.sqldelight.core.SqldelightParserUtil
+import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.FileTree
 import org.gradle.api.logging.LogLevel.ERROR
 import org.gradle.api.logging.LogLevel.INFO
+import org.gradle.api.logging.Logging
+import org.gradle.api.provider.ListProperty
+import org.gradle.api.provider.Property
 import org.gradle.api.tasks.CacheableTask
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFiles
@@ -32,45 +35,39 @@ import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.SkipWhenEmpty
-import org.gradle.api.tasks.SourceTask
 import org.gradle.api.tasks.TaskAction
+import org.gradle.workers.WorkAction
+import org.gradle.workers.WorkParameters
 import java.io.File
 
+@Suppress("UnstableApiUsage") // Worker API
 @CacheableTask
-open class SqlDelightTask : SourceTask() {
+abstract class SqlDelightTask : SqlDelightWorkerTask() {
   @Suppress("unused") // Required to invalidate the task on version updates.
   @Input val pluginVersion = VERSION
 
   @get:OutputDirectory
   var outputDirectory: File? = null
 
+  @Input val projectName = project.objects.property(String::class.java)
+
+  // These are not marked as input because we use [getSource] instead.
   @Internal lateinit var sourceFolders: Iterable<File>
   @Internal lateinit var dependencySourceFolders: Iterable<File>
-  @Internal @Input lateinit var properties: SqlDelightDatabaseProperties
+
+  @Input lateinit var properties: SqlDelightDatabaseProperties
+
+  @Input var verifyMigrations: Boolean = false
 
   @TaskAction
   fun generateSqlDelightFiles() {
-    outputDirectory?.deleteRecursively()
-    val environment = synchronized(environmentLock) {
-      SqlDelightEnvironment(
-          sourceFolders = sourceFolders.filter { it.exists() },
-          dependencyFolders = dependencySourceFolders.filter { it.exists() },
-          properties = properties,
-          outputDirectory = outputDirectory,
-          moduleName = project.name.filter { it.isLetter() }
-      )
-    }
-
-    val generationStatus = environment.generateSqlDelightFiles { info ->
-      logger.log(INFO, info)
-    }
-
-    when (generationStatus) {
-      is Failure -> {
-        logger.log(ERROR, "")
-        generationStatus.errors.forEach { logger.log(ERROR, it) }
-        throw SqlDelightException("Generation failed; see the generator error output for details.")
-      }
+    workQueue().submit(GenerateInterfaces::class.java) {
+      it.dependencySourceFolders.set(dependencySourceFolders)
+      it.outputDirectory.set(outputDirectory)
+      it.projectName.set(projectName.get())
+      it.properties.set(properties)
+      it.sourceFolders.set(sourceFolders)
+      it.verifyMigrations.set(verifyMigrations)
     }
   }
 
@@ -81,7 +78,41 @@ open class SqlDelightTask : SourceTask() {
     return super.getSource()
   }
 
-  private companion object {
-    private val environmentLock = Any()
+  interface GenerateInterfacesWorkParameters : WorkParameters {
+    val sourceFolders: ListProperty<File>
+    val dependencySourceFolders: ListProperty<File>
+    val outputDirectory: DirectoryProperty
+    val projectName: Property<String>
+    val properties: Property<SqlDelightDatabaseProperties>
+    val verifyMigrations: Property<Boolean>
+  }
+
+  abstract class GenerateInterfaces : WorkAction<GenerateInterfacesWorkParameters> {
+    private val logger = Logging.getLogger(SqlDelightTask::class.java)
+
+    override fun execute() {
+      parameters.outputDirectory.get().asFile.deleteRecursively()
+      val environment = SqlDelightEnvironment(
+        sourceFolders = parameters.sourceFolders.get().filter { it.exists() },
+        dependencyFolders = parameters.dependencySourceFolders.get().filter { it.exists() },
+        properties = parameters.properties.get(),
+        moduleName = parameters.projectName.get(),
+        verifyMigrations = parameters.verifyMigrations.get()
+      )
+
+      val generationStatus = environment.generateSqlDelightFiles { info ->
+        logger.log(INFO, info)
+      }
+
+      when (generationStatus) {
+        is Failure -> {
+          logger.log(ERROR, "")
+          generationStatus.errors.forEach { logger.log(ERROR, it) }
+          throw SqlDelightException(
+            "Generation failed; see the generator error output for details."
+          )
+        }
+      }
+    }
   }
 }

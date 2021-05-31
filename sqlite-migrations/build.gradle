@@ -1,12 +1,11 @@
 apply plugin: 'org.jetbrains.kotlin.jvm'
 
 dependencies {
-  implementation deps.kotlin.stdlib.jdk
   implementation deps.sqliteJdbc
   implementation deps.objectDiff
   implementation deps.schemaCrawler.tools
   implementation deps.schemaCrawler.sqlite
-  compile deps.sqlitePsi
+  implementation deps.sqlitePsi
 
   testImplementation deps.junit
   testImplementation deps.truth

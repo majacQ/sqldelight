@@ -1,22 +1,33 @@
 apply plugin: 'org.jetbrains.intellij'
 apply plugin: 'org.jetbrains.kotlin.jvm'
-apply plugin: 'org.kordamp.gradle.markdown'
-
-import com.squareup.sqldelight.tasks.ChangelogPruner
+apply plugin: "org.jetbrains.changelog"
 
 intellij {
   updateSinceUntilBuild false
   version "IC-${versions.idea}"
   pluginName = 'SQLDelight'
   plugins = [
-      "org.jetbrains.kotlin:${versions.kotlin}-release-IJ${versions.idea}-1",
+      "org.jetbrains.kotlin:${versions.kotlin}-release-IJ2020.1-1",
       "gradle",
       "java",
       "Groovy",
       "properties",
   ]
+  if (!project.version.endsWith("SNAPSHOT")) {
+    patchPluginXml {
+      changeNotes({ changelog.get(project.version).toHTML() })
+    }
+  } else {
+    patchPluginXml {
+      version = "$VERSION_NAME-${System.currentTimeMillis()}"
+    }
+  }
   // Uncomment to test against Android Studio
-  // intellij.alternativeIdePath = '/Applications/Android Studio.app'
+  // alternativeIdePath = '/Applications/Android Studio.app'
+}
+
+changelog {
+  path = "$rootDir/CHANGELOG.md"
 }
 
 def isReleaseBuild() {
@@ -32,41 +43,24 @@ publishPlugin {
   channels(isReleaseBuild() ? 'Stable' : 'EAP')
 }
 
-ext.tmpMarkdownInput = file("${buildDir}/markdown/pruned.md")
-ext.htmlOutputDir = "${buildDir}/gen-html".toString()
-
-task pruneChangeLog(type: ChangelogPruner) {
-  changelog = rootProject.file("CHANGELOG.md")
-  output = tmpMarkdownInput
-}
-
-markdownToHtml {
-  dependsOn pruneChangeLog
-  sourceDir = tmpMarkdownInput.parentFile
-  outputDir = new File(htmlOutputDir)
-  inputEncoding = 'UTF-8'
-  outputEncoding = 'UTF-8'
-}
-
-patchPluginXml {
-  dependsOn markdownToHtml
-  changeNotes { new File(htmlOutputDir, 'pruned.html').readLines().join('\n') }
-  version = VERSION_NAME.contains("SNAPSHOT") ? "$VERSION_NAME-${System.currentTimeMillis()}" : project.version
-}
-
 sourceSets {
   main.java.srcDir "src/generated/kotlin"
 }
 
+repositories {
+  maven { url = uri("https://repo.gradle.org/gradle/libs-releases") }
+}
+
 dependencies {
-  compile project(':sqldelight-compiler')
+  implementation project(':sqldelight-compiler')
 
-  compile deps.kotlin.stdlib.jdk
-  compile deps.kotlin.reflect
-  compile deps.bugsnag
+  implementation deps.kotlin.reflect
+  implementation(deps.bugsnag) {
+    exclude group: "org.slf4j"
+  }
 
-  testCompile deps.truth
-  testCompile project(':test-util')
+  testImplementation deps.truth
+  testImplementation project(':test-util')
 }
 
 def getBugsnagKey() {

@@ -1,123 +1,45 @@
 # SQLDelight
 
-See the [project website](https://cashapp.github.io/sqldelight/) for documentation and APIs.
+See the [project website](https://cashapp.github.io/sqldelight/) for documentation and APIs
 
-SQLDelight generates typesafe APIs from your SQL statements. It compile-time verifies your schema, statements, and migrations and provides IDE features like autocomplete and refactoring which make writing and maintaining SQL simple. SQLDelight currently supports the SQLite dialect and there are supported SQLite drivers on Android, JVM, iOS, and Windows.
+SQLDelight generates typesafe kotlin APIs from your SQL statements. It verifies your schema, statements, and migrations at compile-time and provides IDE features like autocomplete and refactoring which make writing and maintaining SQL simple.
 
-## Example
-
-To use SQLDelight, apply the [gradle plugin](https://github.com/square/sqldelight#gradle) and put your SQL statements in a `.sq` file in `src/main/sqldelight`.  Typically the first statement in the SQL file creates a table.
+SQLDelight understands your existing SQL schema.
 
 ```sql
--- src/main/sqldelight/com/example/sqldelight/hockey/data/Player.sq
-
-CREATE TABLE hockeyPlayer (
-  player_number INTEGER NOT NULL,
-  full_name TEXT NOT NULL
+CREATE TABLE hockey_player (
+  id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  number INTEGER NOT NULL
 );
-
-CREATE INDEX hockeyPlayer_full_name ON hockeyPlayer(full_name);
-
-INSERT INTO hockeyPlayer (player_number, full_name)
-VALUES (15, 'Ryan Getzlaf');
 ```
 
-From this SQLDelight will generate a `Database` Kotlin class with an associated `Schema` object that can be used to create your database and run your statements on it. Doing this also requires a driver, which SQLDelight provides implementations of:
+It generates typesafe code for any labeled SQL statements.
 
-#### Android
-```groovy
-dependencies {
-  implementation "com.squareup.sqldelight:android-driver:1.2.2"
-}
-```
-```kotlin
-val driver: SqlDriver = AndroidSqliteDriver(Database.Schema, context, "test.db")
-```
+![intro.gif](docs/images/intro.gif)
 
-#### iOS, or Windows (Using Kotlin/Native)
-```groovy
-dependencies {
-  implementation "com.squareup.sqldelight:native-driver:1.2.2"
-}
-```
-```kotlin
-val driver: SqlDriver = NativeSqliteDriver(Database.Schema, "test.db")
-```
+---
 
-#### JVM
-```groovy
-dependencies {
-  implementation "com.squareup.sqldelight:sqlite-driver:1.2.2"
-}
-```
-```kotlin
-val driver: SqlDriver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
-Database.Schema.create(driver)
-```
+SQLDelight supports a variety of dialects and platforms:
 
-#### Javascript
-```groovy
-dependencies {
-  implementation "com.squareup.sqldelight:sqljs-driver:1.3.0"
-}
-```
-```kotlin
-initSqlDriver(Database.Schema).then { db ->
-    //...
-}
-```
+SQLite
 
-SQL statements inside a `.sq` file can be labeled to have a typesafe function generated for them available at runtime.
+* [Android](https://cashapp.github.io/sqldelight/android_sqlite)
+* [Native (iOS, macOS, or Windows)](https://cashapp.github.io/sqldelight/native_sqlite)
+* [JVM](https://cashapp.github.io/sqldelight/jvm_sqlite)
+* Javascript (Work In Progress)
+* [Multiplatform](https://cashapp.github.io/sqldelight/multiplatform_sqlite)
 
-```sql
-selectAll:
-SELECT *
-FROM hockeyPlayer;
+[MySQL (JVM)](https://cashapp.github.io/sqldelight/jvm_mysql/)
 
-insert:
-INSERT INTO hockeyPlayer(player_number, full_name)
-VALUES (?, ?);
+[PostgreSQL (JVM)](https://cashapp.github.io/sqldelight/jvm_postgresql) (Experimental)
 
-insertFullPlayerObject:
-INSERT INTO hockeyPlayer(player_number, full_name)
-VALUES ?;
-```
+[HSQL/H2 (JVM)](https://cashapp.github.io/sqldelight/jvm_h2) (Experimental)
 
-Files with labeled statements in them will have a queries file generated from them that matches the `.sq` file name - putting the above sql into `Player.sq` generates `PlayerQueries.kt`. To get a reference to `PlayerQueries` you need to wrap the driver we made above:
+## Snapshots
 
-```kotlin
-// In reality the database and driver above should be created a single time
-// and passed around using your favourite dependency injection/service locator/singleton pattern.
-val database = Database(driver)
-
-val playerQueries: PlayerQueries = database.playerQueries
-
-println(playerQueries.selectAll().executeAsList())
-// Prints [HockeyPlayer.Impl(15, "Ryan Getzlaf")]
-
-playerQueries.insert(player_number = 10, full_name = "Corey Perry")
-println(playerQueries.selectAll().executeAsList())
-// Prints [HockeyPlayer.Impl(15, "Ryan Getzlaf"), HockeyPlayer.Impl(10, "Corey Perry")]
-
-val player = HockeyPlayer(10, "Ronald McDonald")
-playerQueries.insertFullPlayerObject(player)
-```
-
-# Gradle
-
-```groovy
-buildscript {
-  repositories {
-    google()
-    mavenCentral()
-  }
-  dependencies {
-    classpath 'com.squareup.sqldelight:gradle-plugin:1.2.2'
-  }
-}
-
-apply plugin: 'com.squareup.sqldelight'
-```
+Snapshots of the development version (including the IDE plugin zip) are available in
+[Sonatype's `snapshots` repository](https://oss.sonatype.org/content/repositories/snapshots/).
 
 License
 =======

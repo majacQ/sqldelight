@@ -17,7 +17,6 @@
 package com.squareup.sqldelight.intellij.lang
 
 import com.google.common.truth.Truth.assertThat
-import com.intellij.ide.structureView.StructureViewTreeElement
 import com.intellij.navigation.NavigationItem
 import com.squareup.sqldelight.core.lang.SqlDelightFileType
 import com.squareup.sqldelight.intellij.SqlDelightFixtureTestCase
@@ -25,7 +24,9 @@ import com.squareup.sqldelight.intellij.SqlDelightFixtureTestCase
 class SqlDelightStructureViewFactoryTest : SqlDelightFixtureTestCase() {
 
   fun testStructureView() {
-    myFixture.configureByText(SqlDelightFileType, """
+    myFixture.configureByText(
+      SqlDelightFileType,
+      """
       |CREATE TABLE test (
       |  _id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
       |  title TEXT NOT NULL
@@ -53,12 +54,14 @@ class SqlDelightStructureViewFactoryTest : SqlDelightFixtureTestCase() {
       |ON test (_id);
       |
       |CREATE VIRTUAL TABLE virtual_table USING custom_module;
-      """.trimMargin())
+      """.trimMargin()
+    )
 
     myFixture.testStructureView { consumer ->
       with(consumer.treeModel.root) {
         val entries = children.map { (it as NavigationItem).name }
-        assertThat(entries).isEqualTo(listOf(
+        assertThat(entries).isEqualTo(
+          listOf(
             "CREATE TABLE test",
             "select_all",
             "insert",
@@ -66,7 +69,8 @@ class SqlDelightStructureViewFactoryTest : SqlDelightFixtureTestCase() {
             "CREATE TRIGGER trigger_1",
             "CREATE INDEX some_index",
             "CREATE VIRTUAL TABLE virtual_table"
-        ))
+          )
+        )
       }
     }
   }

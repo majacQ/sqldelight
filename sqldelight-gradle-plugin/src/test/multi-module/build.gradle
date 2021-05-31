@@ -1,7 +1,11 @@
+buildscript {
+  apply from: "${projectDir.absolutePath}/../buildscript.gradle"
+}
+
 allprojects {
   repositories {
     maven {
-      url "file://${rootDir.absolutePath}/../../../../build/localMaven"
+      url "file://${rootDir}/../../../../build/localMaven"
     }
     mavenCentral()
     google()

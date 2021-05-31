@@ -27,6 +27,7 @@ import com.squareup.sqldelight.core.lang.psi.JavaTypeMixin
 import com.squareup.sqldelight.core.lang.util.findChildrenOfType
 import com.squareup.sqldelight.core.psi.SqlDelightImportStmt
 import org.jetbrains.kotlin.psi.psiUtil.getNonStrictParentOfType
+import kotlin.math.max
 
 class SqlDelightClassCompletionContributor : JavaClassNameCompletionContributor() {
   private val insertHandler = AutoImportInsertionHandler()
@@ -38,8 +39,10 @@ class SqlDelightClassCompletionContributor : JavaClassNameCompletionContributor(
     if (parameters.position.getNonStrictParentOfType<JavaTypeMixin>() == null) return
 
     val result = resultSet.withPrefixMatcher(findReferenceOrAlphanumericPrefix(parameters))
-    JavaClassNameCompletionContributor.addAllClasses(parameters, parameters.invocationCount <= 1,
-        result.prefixMatcher) { lookupElement ->
+    JavaClassNameCompletionContributor.addAllClasses(
+      parameters, parameters.invocationCount <= 1,
+      result.prefixMatcher
+    ) { lookupElement ->
       if (lookupElement is JavaPsiClassReferenceElement) {
         lookupElement.setInsertHandler(insertHandler)
       }
@@ -52,7 +55,7 @@ private class AutoImportInsertionHandler : InsertHandler<JavaPsiClassReferenceEl
   override fun handleInsert(context: InsertionContext, item: JavaPsiClassReferenceElement) {
     val qname = item.qualifiedName
     val imports = (context.file as SqlDelightFile).sqlStmtList
-        ?.findChildrenOfType<SqlDelightImportStmt>().orEmpty()
+      ?.findChildrenOfType<SqlDelightImportStmt>().orEmpty()
     val ref = imports.map { it.javaType }.find { it.text == qname }
     val refEnd = context.trackOffset(context.tailOffset, false)
 
@@ -77,7 +80,7 @@ private class AutoImportInsertionHandler : InsertHandler<JavaPsiClassReferenceEl
     var endOffset = 0
     for (importElement in imports) {
       newImports.add(importElement.text)
-      endOffset = Math.max(endOffset, importElement.textOffset + importElement.textLength)
+      endOffset = max(endOffset, importElement.textOffset + importElement.textLength)
     }
     document.replaceString(0, endOffset, newImports.sorted().joinToString("\n"))
   }

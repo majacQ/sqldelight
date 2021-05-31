@@ -11,7 +11,8 @@ class MutatorQueryFunctionTest {
   @get:Rule val tempFolder = TemporaryFolder()
 
   @Test fun `trigger before insert then insert notifies`() {
-    val file = FixtureCompiler.parseSql("""
+    val file = FixtureCompiler.parseSql(
+      """
       |CREATE TABLE data (
       |  id INTEGER NOT NULL PRIMARY KEY,
       |  value TEXT
@@ -35,27 +36,32 @@ class MutatorQueryFunctionTest {
       |insertData:
       |INSERT INTO data
       |VALUES (?, ?);
-      """.trimMargin(), tempFolder)
+      """.trimMargin(),
+      tempFolder
+    )
 
     val mutator = file.namedMutators.first()
     val generator = MutatorQueryGenerator(mutator)
 
-    assertThat(generator.function().toString()).isEqualTo("""
-      |override fun insertData(id: kotlin.Long?, value: kotlin.String?) {
+    assertThat(generator.function().toString()).isEqualTo(
+      """
+      |public override fun insertData(id: kotlin.Long?, value: kotlin.String?): kotlin.Unit {
       |  driver.execute(${mutator.id}, ""${'"'}
       |  |INSERT INTO data
-      |  |VALUES (?1, ?2)
+      |  |VALUES (?, ?)
       |  ""${'"'}.trimMargin(), 2) {
       |    bindLong(1, id)
       |    bindString(2, value)
       |  }
       |  notifyQueries(${mutator.id}, {database.testQueries.selectData2})
       |}
-      |""".trimMargin())
+      |""".trimMargin()
+    )
   }
 
   @Test fun `trigger before insert then insert does not notify for delete`() {
-    val file = FixtureCompiler.parseSql("""
+    val file = FixtureCompiler.parseSql(
+      """
       |CREATE TABLE data (
       |  id INTEGER NOT NULL PRIMARY KEY,
       |  value TEXT
@@ -79,25 +85,30 @@ class MutatorQueryFunctionTest {
       |deleteData:
       |DELETE FROM data
       |WHERE id = ?;
-      """.trimMargin(), tempFolder)
+      """.trimMargin(),
+      tempFolder
+    )
 
     val mutator = file.namedMutators.first()
     val generator = MutatorQueryGenerator(mutator)
 
-    assertThat(generator.function().toString()).isEqualTo("""
-      |override fun deleteData(id: kotlin.Long) {
+    assertThat(generator.function().toString()).isEqualTo(
+      """
+      |public override fun deleteData(id: kotlin.Long): kotlin.Unit {
       |  driver.execute(${mutator.id}, ""${'"'}
       |  |DELETE FROM data
-      |  |WHERE id = ?1
+      |  |WHERE id = ?
       |  ""${'"'}.trimMargin(), 1) {
       |    bindLong(1, id)
       |  }
       |}
-      |""".trimMargin())
+      |""".trimMargin()
+    )
   }
 
   @Test fun `trigger before insert then insert does not notify for update`() {
-    val file = FixtureCompiler.parseSql("""
+    val file = FixtureCompiler.parseSql(
+      """
       |CREATE TABLE data (
       |  id INTEGER NOT NULL PRIMARY KEY,
       |  value TEXT
@@ -122,27 +133,32 @@ class MutatorQueryFunctionTest {
       |UPDATE data
       |SET value = ?
       |WHERE id = ?;
-      """.trimMargin(), tempFolder)
+      """.trimMargin(),
+      tempFolder
+    )
 
     val mutator = file.namedMutators.first()
     val generator = MutatorQueryGenerator(mutator)
 
-    assertThat(generator.function().toString()).isEqualTo("""
-      |override fun deleteData(value: kotlin.String?, id: kotlin.Long) {
+    assertThat(generator.function().toString()).isEqualTo(
+      """
+      |public override fun deleteData(value: kotlin.String?, id: kotlin.Long): kotlin.Unit {
       |  driver.execute(${mutator.id}, ""${'"'}
       |  |UPDATE data
-      |  |SET value = ?1
-      |  |WHERE id = ?2
+      |  |SET value = ?
+      |  |WHERE id = ?
       |  ""${'"'}.trimMargin(), 2) {
       |    bindString(1, value)
       |    bindLong(2, id)
       |  }
       |}
-      |""".trimMargin())
+      |""".trimMargin()
+    )
   }
 
   @Test fun `trigger before update then insert notifies`() {
-    val file = FixtureCompiler.parseSql("""
+    val file = FixtureCompiler.parseSql(
+      """
       |CREATE TABLE data (
       |  id INTEGER NOT NULL PRIMARY KEY,
       |  value TEXT
@@ -167,28 +183,33 @@ class MutatorQueryFunctionTest {
       |UPDATE data
       |SET value = ?
       |WHERE id = ?;
-      """.trimMargin(), tempFolder)
+      """.trimMargin(),
+      tempFolder
+    )
 
     val mutator = file.namedMutators.first()
     val generator = MutatorQueryGenerator(mutator)
 
-    assertThat(generator.function().toString()).isEqualTo("""
-      |override fun deleteData(value: kotlin.String?, id: kotlin.Long) {
+    assertThat(generator.function().toString()).isEqualTo(
+      """
+      |public override fun deleteData(value: kotlin.String?, id: kotlin.Long): kotlin.Unit {
       |  driver.execute(${mutator.id}, ""${'"'}
       |  |UPDATE data
-      |  |SET value = ?1
-      |  |WHERE id = ?2
+      |  |SET value = ?
+      |  |WHERE id = ?
       |  ""${'"'}.trimMargin(), 2) {
       |    bindString(1, value)
       |    bindLong(2, id)
       |  }
       |  notifyQueries(${mutator.id}, {database.testQueries.selectData2})
       |}
-      |""".trimMargin())
+      |""".trimMargin()
+    )
   }
 
   @Test fun `trigger before update columns then insert notifies`() {
-    val file = FixtureCompiler.parseSql("""
+    val file = FixtureCompiler.parseSql(
+      """
       |CREATE TABLE data (
       |  id INTEGER NOT NULL PRIMARY KEY,
       |  value TEXT
@@ -213,28 +234,33 @@ class MutatorQueryFunctionTest {
       |UPDATE data
       |SET value = ?
       |WHERE id = ?;
-      """.trimMargin(), tempFolder)
+      """.trimMargin(),
+      tempFolder
+    )
 
     val mutator = file.namedMutators.first()
     val generator = MutatorQueryGenerator(mutator)
 
-    assertThat(generator.function().toString()).isEqualTo("""
-      |override fun deleteData(value: kotlin.String?, id: kotlin.Long) {
+    assertThat(generator.function().toString()).isEqualTo(
+      """
+      |public override fun deleteData(value: kotlin.String?, id: kotlin.Long): kotlin.Unit {
       |  driver.execute(${mutator.id}, ""${'"'}
       |  |UPDATE data
-      |  |SET value = ?1
-      |  |WHERE id = ?2
+      |  |SET value = ?
+      |  |WHERE id = ?
       |  ""${'"'}.trimMargin(), 2) {
       |    bindString(1, value)
       |    bindLong(2, id)
       |  }
       |  notifyQueries(${mutator.id}, {database.testQueries.selectData2})
       |}
-      |""".trimMargin())
+      |""".trimMargin()
+    )
   }
 
   @Test fun `trigger before update columns then insert does not notify for different column`() {
-    val file = FixtureCompiler.parseSql("""
+    val file = FixtureCompiler.parseSql(
+      """
       |CREATE TABLE data (
       |  id INTEGER NOT NULL PRIMARY KEY,
       |  value TEXT
@@ -259,22 +285,26 @@ class MutatorQueryFunctionTest {
       |UPDATE data
       |SET value = ?
       |WHERE id = ?;
-      """.trimMargin(), tempFolder)
+      """.trimMargin(),
+      tempFolder
+    )
 
     val mutator = file.namedMutators.first()
     val generator = MutatorQueryGenerator(mutator)
 
-    assertThat(generator.function().toString()).isEqualTo("""
-      |override fun deleteData(value: kotlin.String?, id: kotlin.Long) {
+    assertThat(generator.function().toString()).isEqualTo(
+      """
+      |public override fun deleteData(value: kotlin.String?, id: kotlin.Long): kotlin.Unit {
       |  driver.execute(${mutator.id}, ""${'"'}
       |  |UPDATE data
-      |  |SET value = ?1
-      |  |WHERE id = ?2
+      |  |SET value = ?
+      |  |WHERE id = ?
       |  ""${'"'}.trimMargin(), 2) {
       |    bindString(1, value)
       |    bindLong(2, id)
       |  }
       |}
-      |""".trimMargin())
+      |""".trimMargin()
+    )
   }
 }

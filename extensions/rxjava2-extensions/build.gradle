@@ -4,7 +4,6 @@ archivesBaseName = 'sqldelight-rxjava2-extensions'
 
 dependencies {
   implementation project(':runtime')
-  implementation deps.kotlin.stdlib.jdk
   implementation deps.rxJava2
 
   testImplementation project(':drivers:sqlite-driver')
@@ -13,9 +12,3 @@ dependencies {
 }
 
 apply from: "$rootDir/gradle/gradle-mvn-push.gradle"
-
-afterEvaluate {
-  // TODO work around https://youtrack.jetbrains.com/issue/KT-27059
-  addDependency(tasks.getByName('uploadArchives') as Upload, 'com.squareup.sqldelight', 'runtime-jvm', version, 'jar')
-  addDependency(tasks.getByName('installArchives') as Upload, 'com.squareup.sqldelight', 'runtime-jvm', version, 'jar')
-}
