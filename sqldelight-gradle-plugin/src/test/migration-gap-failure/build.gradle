@@ -1,7 +1,9 @@
-plugins {
-  id 'kotlin'
-  id 'com.squareup.sqldelight'
+buildscript {
+  apply from: "${projectDir.absolutePath}/../buildscript.gradle"
 }
+
+apply plugin: 'org.jetbrains.kotlin.jvm'
+apply plugin: 'com.squareup.sqldelight'
 
 repositories {
   maven {

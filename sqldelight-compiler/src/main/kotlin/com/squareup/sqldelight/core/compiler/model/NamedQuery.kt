@@ -100,9 +100,9 @@ data class NamedQuery(
    */
   internal val interfaceType: ClassName by lazy {
     pureTable?.let {
-      return@lazy ClassName(it.tableName.sqFile().packageName, allocateName(it.tableName).capitalize())
+      return@lazy ClassName(it.tableName.sqFile().packageName!!, allocateName(it.tableName).capitalize())
     }
-    return@lazy ClassName(select.sqFile().packageName, name.capitalize())
+    return@lazy ClassName(select.sqFile().packageName!!, name.capitalize())
   }
 
   /**
@@ -153,7 +153,7 @@ data class NamedQuery(
     }
 
     if (typeOne.column !== typeTwo.column &&
-        typeOne.resultSetGetter(0) != typeTwo.resultSetGetter(0) &&
+        typeOne.cursorGetter(0) != typeTwo.cursorGetter(0) &&
         typeOne.column != null && typeTwo.column != null) {
       // Incompatible adapters. Revert to unadapted java type.
       return IntermediateType(sqliteType = typeOne.sqliteType, name = typeOne.name).nullableIf(nullable)

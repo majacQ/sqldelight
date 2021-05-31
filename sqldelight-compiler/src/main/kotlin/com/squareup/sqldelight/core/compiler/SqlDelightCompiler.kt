@@ -42,7 +42,6 @@ object SqlDelightCompiler {
     output: FileAppender
   ) {
     writeTableInterfaces(module, file, implementationFolder, output)
-    writeViewInterfaces(module, file, implementationFolder, output)
     writeQueryInterfaces(module, file, implementationFolder, output)
     writeQueriesInterface(module, file, implementationFolder, output)
   }
@@ -55,7 +54,6 @@ object SqlDelightCompiler {
     includeAll: Boolean = false
   ) {
     writeTableInterfaces(module, file, implementationFolder, output, includeAll)
-    writeViewInterfaces(module, file, implementationFolder, output, includeAll)
   }
 
   fun writeDatabaseInterface(
@@ -110,8 +108,8 @@ object SqlDelightCompiler {
         .addImport("$packageName.$implementationFolder", "newInstance", "schema")
         .apply {
           var index = 0
-          fileIndex.dependencies.forEach { (packageName, className) ->
-            addAliasedImport(ClassName(packageName, className), "$className${index++}")
+          fileIndex.dependencies.forEach {
+            addAliasedImport(ClassName(it.packageName, it.className), "${it.className}${index++}")
           }
         }
         .addType(queryWrapperType)
@@ -126,11 +124,17 @@ object SqlDelightCompiler {
     output: FileAppender,
     includeAll: Boolean = false
   ) {
+    val packageName = file.packageName ?: return
     file.tables(includeAll).forEach { query ->
       val statement = query.tableName.parent
-      if (statement is SqlCreateViewStmt) return@forEach
 
-      FileSpec.builder(file.packageName, allocateName(query.tableName))
+      if (statement is SqlCreateViewStmt && statement.compoundSelectStmt != null) {
+        listOf(NamedQuery(allocateName(statement.viewName), statement.compoundSelectStmt!!, statement.viewName))
+            .writeQueryInterfaces(file, output)
+            return@forEach
+      }
+
+      FileSpec.builder(packageName, allocateName(query.tableName))
           .apply {
             tryWithElement(statement) {
               val generator = TableInterfaceGenerator(query)
@@ -140,19 +144,6 @@ object SqlDelightCompiler {
           .build()
           .writeToAndClose(output("${statement.sqFile().generatedDir}/${allocateName(query.tableName).capitalize()}.kt"))
     }
-  }
-
-  internal fun writeViewInterfaces(
-    module: Module,
-    file: SqlDelightFile,
-    implementationFolder: String,
-    output: FileAppender,
-    includeAll: Boolean = false
-  ) {
-    file.views(includeAll)
-        .filter { it.compoundSelectStmt != null }
-        .map { NamedQuery(allocateName(it.viewName), it.compoundSelectStmt!!, it.viewName) }
-        .writeQueryInterfaces(file, output)
   }
 
   internal fun writeQueryInterfaces(
@@ -170,7 +161,7 @@ object SqlDelightCompiler {
     implementationFolder: String,
     output: FileAppender
   ) {
-    val packageName = file.packageName
+    val packageName = file.packageName ?: return
     val queriesType = QueriesTypeGenerator(module, file).interfaceType()
     FileSpec.builder(packageName, file.queriesName.capitalize())
         .addType(queriesType)
@@ -183,9 +174,10 @@ object SqlDelightCompiler {
   }
 
   private fun List<NamedQuery>.writeQueryInterfaces(file: SqlDelightFile, output: FileAppender) {
+    val packageName = file.packageName ?: return
     return filter { tryWithElement(it.select) { it.needsInterface() } }
         .forEach { namedQuery ->
-          FileSpec.builder(file.packageName, namedQuery.name)
+          FileSpec.builder(packageName, namedQuery.name)
               .apply {
                 tryWithElement(namedQuery.select) {
                   val generator = QueryInterfaceGenerator(namedQuery)

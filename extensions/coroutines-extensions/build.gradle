@@ -12,8 +12,7 @@ kotlin {
     commonMain {
       dependencies {
         api project(':runtime')
-        api deps.kotlin.stdlib.common
-        api deps.kotlin.coroutines.common
+        api deps.kotlin.coroutines
       }
     }
     commonTest {
@@ -24,55 +23,61 @@ kotlin {
         implementation deps.turbine
       }
     }
-    jvmMain {
-      dependencies {
-        api deps.kotlin.stdlib.jdk
-        api deps.kotlin.coroutines.jdk
-      }
-    }
     jvmTest {
       dependencies {
         implementation deps.kotlin.test.junit
         implementation project(':drivers:sqlite-driver')
       }
     }
-    jsMain {
-      dependencies {
-        implementation deps.kotlin.stdlib.js
-        implementation deps.kotlin.coroutines.js
-      }
-    }
     jsTest {
       dependencies {
         implementation deps.kotlin.test.js
+        implementation project(':drivers:sqljs-driver')
       }
     }
     nativeMain {
       dependencies {
-        implementation deps.kotlin.coroutines.native
+        implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:${versions.kotlinCoroutines}-native-mt") {
+          force = true
+        }
       }
     }
     nativeTest {
       dependencies {
         implementation project(':drivers:native-driver')
-        implementation(deps.kotlin.coroutines.native) {
-          version {
-            strictly("${versions.kotlinCoroutines}-native-mt")
-          }
+        implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:${versions.kotlinCoroutines}-native-mt") {
+          force = true
         }
+      }
+    }
+  }
+
+  js {
+    nodejs {
+      testTask {
+        useMocha {
+          timeout = "5s"
+        }
+      }
+    }
+    browser {
+      testTask {
+        useMocha {
+          timeout = "5s"
+        }
+      }
+    }
+    compilations.all {
+      it.compileKotlinTask.kotlinOptions {
+        moduleKind = "umd"
+        sourceMap = true
+        sourceMapEmbedSources = null
       }
     }
   }
 
   targets {
     targetFromPreset(presets.jvm, 'jvm')
-    targetFromPreset(presets.js, 'js') {
-      tasks.getByName(compilations.main.compileKotlinTaskName).kotlinOptions {
-        moduleKind = 'umd'
-        sourceMap = true
-        metaInfo = true
-      }
-    }
     targetFromPreset(presets.iosX64, 'iosX64')
     targetFromPreset(presets.iosArm32, 'iosArm32')
     targetFromPreset(presets.iosArm64, 'iosArm64')

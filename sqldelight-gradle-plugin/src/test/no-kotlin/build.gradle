@@ -1,9 +1,5 @@
-plugins {
-  id 'com.squareup.sqldelight'
+buildscript {
+  apply from: "${projectDir.absolutePath}/../buildscript.gradle"
 }
 
-repositories {
-  maven {
-    url "file://${projectDir.absolutePath}/../../../../build/localMaven"
-  }
-}
+apply plugin: 'com.squareup.sqldelight'

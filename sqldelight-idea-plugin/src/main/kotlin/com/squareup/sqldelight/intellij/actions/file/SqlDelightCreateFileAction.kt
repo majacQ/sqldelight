@@ -16,18 +16,17 @@ import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.DumbAware
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.InputValidatorEx
-import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.psi.PsiDirectory
 import com.intellij.psi.PsiFile
 import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.util.IncorrectOperationException
-import com.squareup.sqldelight.core.SqlDelightPropertiesFile
+import com.squareup.sqldelight.core.SqlDelightFileIndex
 import com.squareup.sqldelight.core.lang.SqlDelightFile
 import com.squareup.sqldelight.core.lang.SqlDelightFileType
 import com.squareup.sqldelight.core.lang.SqlDelightLanguage
 import com.squareup.sqldelight.intellij.SqlDelightFileIconProvider
-import com.squareup.sqldelight.intellij.propertiesFolder
 import java.util.Properties
+import org.jetbrains.kotlin.idea.util.findModule
 
 /**
  * Creates a new SqlDelight file/table/migration from a template (see [fileTemplates.internal])
@@ -41,8 +40,8 @@ class SqlDelightCreateFileAction : CreateFileFromTemplateAction(
 ), DumbAware {
 
   override fun postProcess(
-    createdElement: PsiFile?,
-    templateName: String?,
+    createdElement: PsiFile,
+    templateName: String,
     customProperties: MutableMap<String, String>?
   ) {
     super.postProcess(createdElement, templateName, customProperties)
@@ -68,7 +67,7 @@ class SqlDelightCreateFileAction : CreateFileFromTemplateAction(
 
   override fun getActionName(directory: PsiDirectory?, newName: String, templateName: String?): String = CAPTION
 
-  override fun buildDialog(project: Project?, directory: PsiDirectory?, builder: CreateFileFromTemplateDialog.Builder) {
+  override fun buildDialog(project: Project, directory: PsiDirectory, builder: CreateFileFromTemplateDialog.Builder) {
     val icon = SqlDelightFileIconProvider.getIcon(SqlDelightLanguage, project)
     builder.setTitle("New $CAPTION")
         .addKind("File", icon, "SqlDelight File")
@@ -80,18 +79,12 @@ class SqlDelightCreateFileAction : CreateFileFromTemplateAction(
   override fun isAvailable(dataContext: DataContext): Boolean {
     if (!super.isAvailable(dataContext)) return false
 
-    val project = CommonDataKeys.PROJECT.getData(dataContext)!!
-    val file = CommonDataKeys.VIRTUAL_FILE.getData(dataContext)!!
-    val propertiesFolder = project.propertiesFolder ?: return false
+    val project = CommonDataKeys.PROJECT.getData(dataContext) ?: return false
+    val file = CommonDataKeys.VIRTUAL_FILE.getData(dataContext) ?: return false
 
-    val props = VfsUtil.collectChildrenRecursively(propertiesFolder)
-        .find { it.name == SqlDelightPropertiesFile.NAME } ?: return false
-    val propsFile = SqlDelightPropertiesFile.fromText(props.inputStream.reader().readText())!!
+    val module = file.findModule(project) ?: return false
 
-    // only show the SqlDelight.New option if the selected folder is under src/**/sqldelight or a custom one
-    return propsFile.databases.first().compilationUnits
-        .flatMap { it.sourceFolders }
-        .any { file.path.contains(it.path) }
+    return SqlDelightFileIndex.getInstance(module).isConfigured
   }
 
   override fun startInWriteAction() = false

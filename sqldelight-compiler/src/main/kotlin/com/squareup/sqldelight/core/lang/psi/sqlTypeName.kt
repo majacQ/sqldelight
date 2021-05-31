@@ -4,7 +4,7 @@ import com.alecstrong.sql.psi.core.hsql.psi.HsqlTypeName
 import com.alecstrong.sql.psi.core.mysql.psi.MySqlTypeName
 import com.alecstrong.sql.psi.core.postgresql.psi.PostgreSqlTypeName
 import com.alecstrong.sql.psi.core.psi.SqlTypeName
-import com.alecstrong.sql.psi.core.sqlite_3_18.psi.TypeName as SqliteTypeName
+import com.alecstrong.sql.psi.core.sqlite_3_18.psi.SqliteTypeName
 import com.squareup.kotlinpoet.BOOLEAN
 import com.squareup.kotlinpoet.BYTE
 import com.squareup.kotlinpoet.INT
@@ -23,11 +23,11 @@ internal fun SqlTypeName.type(): IntermediateType {
 }
 
 private fun SqliteTypeName.type(): IntermediateType {
-  return when (text) {
-    "TEXT" -> IntermediateType(IntermediateType.SqliteType.TEXT)
-    "BLOB" -> IntermediateType(IntermediateType.SqliteType.BLOB)
-    "INTEGER" -> IntermediateType(IntermediateType.SqliteType.INTEGER)
-    "REAL" -> IntermediateType(IntermediateType.SqliteType.REAL)
+  return when {
+    textDataType != null -> IntermediateType(IntermediateType.SqliteType.TEXT)
+    blobDataType != null -> IntermediateType(IntermediateType.SqliteType.BLOB)
+    intDataType != null -> IntermediateType(IntermediateType.SqliteType.INTEGER)
+    realDataType != null -> IntermediateType(IntermediateType.SqliteType.REAL)
     else -> throw IllegalArgumentException("Unknown sql type $text")
   }
 }

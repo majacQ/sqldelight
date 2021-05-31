@@ -1,9 +1,9 @@
-plugins {
-  id 'kotlin'
-  id 'com.squareup.sqldelight'
+buildscript {
+  apply from: "${projectDir.absolutePath}/../buildscript.gradle"
 }
 
-apply from: '../../../../gradle/dependencies.gradle'
+apply plugin: 'org.jetbrains.kotlin.jvm'
+apply plugin: 'com.squareup.sqldelight'
 
 repositories {
   maven {
@@ -20,7 +20,6 @@ sqldelight {
 }
 
 dependencies {
-  implementation deps.kotlin.stdlib.jdk
   implementation deps.sqliteJdbc
   implementation "com.squareup.sqldelight:sqlite-driver:${com.squareup.sqldelight.VersionKt.VERSION}"
   implementation "org.xerial:sqlite-jdbc:3.30.1"

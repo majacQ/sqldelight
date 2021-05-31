@@ -1,0 +1,19 @@
+  apply from: "${projectDir.absolutePath}/../../../../gradle/dependencies.gradle"
+
+  project.buildscript.repositories {
+    maven {
+      url "file://${projectDir.absolutePath}/../../../../build/localMaven"
+    }
+    mavenCentral()
+    google()
+    jcenter()
+    maven {
+      url 'https://oss.sonatype.org/content/repositories/snapshots/'
+    }
+  }
+
+  project.buildscript.dependencies {
+    classpath 'com.squareup.sqldelight:gradle-plugin:+'
+    classpath deps.plugins.kotlin
+    classpath deps.plugins.android
+  }
