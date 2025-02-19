@@ -1,0 +1,20 @@
+plugins {
+  alias(libs.plugins.kotlin.jvm)
+  alias(libs.plugins.sqldelight)
+}
+
+sqldelight {
+  databases {
+    MyDatabase {
+      packageName = "app.cash.sqldelight.mysql.integration"
+      dialect(libs.sqldelight.mysql)
+    }
+  }
+}
+
+dependencies {
+  implementation libs.mysqlJdbc
+  implementation libs.testContainers.mysql
+  implementation "app.cash.sqldelight:jdbc-driver:${app.cash.sqldelight.VersionKt.VERSION}"
+  implementation libs.truth
+}

@@ -1,26 +1,19 @@
-buildscript {
-  apply from: "${projectDir.absolutePath}/../buildscript.gradle"
-}
-
-apply plugin: 'org.jetbrains.kotlin.jvm'
-apply plugin: 'com.squareup.sqldelight'
-
-repositories {
-  maven {
-    url "file://${projectDir.absolutePath}/../../../../build/localMaven"
-  }
-  mavenCentral()
+plugins {
+  alias(libs.plugins.kotlin.jvm)
+  alias(libs.plugins.sqldelight)
 }
 
 sqldelight {
-  DatabaseA {
-    packageName = "com.example"
-    sourceFolders = ["projectA"]
-    verifyMigrations = true
-  }
-  DatabaseB {
-    packageName = "com.example"
-    sourceFolders = ["projectB"]
-    verifyMigrations = true
+  databases {
+    DatabaseA {
+      packageName = "com.example"
+      srcDirs('src/main/projectA')
+      verifyMigrations = true
+    }
+    DatabaseB {
+      packageName = "com.example"
+      srcDirs('src/main/projectB')
+      verifyMigrations = true
+    }
   }
 }

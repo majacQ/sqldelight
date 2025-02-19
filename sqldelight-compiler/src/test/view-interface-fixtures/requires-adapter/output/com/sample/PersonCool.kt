@@ -12,18 +12,7 @@ public data class PersonCool(
   public val last_name: String?,
   public val is_cool: Boolean,
   public val friends: List<Person>?,
-  public val shhh_its_secret: @Redacted String,
-  public val how_cool: String
-) {
-  public override fun toString(): String = """
-  |PersonCool [
-  |  _id: $_id
-  |  name: $name
-  |  last_name: $last_name
-  |  is_cool: $is_cool
-  |  friends: $friends
-  |  shhh_its_secret: $shhh_its_secret
-  |  how_cool: $how_cool
-  |]
-  """.trimMargin()
-}
+  @Redacted
+  public val shhh_its_secret: String,
+  public val how_cool: String,
+)

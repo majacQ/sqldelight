@@ -1,12 +1,12 @@
-buildscript {
-  apply from: "${projectDir.absolutePath}/../buildscript.gradle"
+plugins {
+  alias(libs.plugins.kotlin.jvm)
+  alias(libs.plugins.sqldelight)
 }
 
-apply plugin: 'org.jetbrains.kotlin.jvm'
-apply plugin: 'com.squareup.sqldelight'
-
 sqldelight {
-  Database {
-    packageName = "com.example"
+  databases {
+    Database {
+      packageName = "com.example"
+    }
   }
 }

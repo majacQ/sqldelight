@@ -1,43 +1,48 @@
-apply plugin: 'com.android.library'
-apply plugin: 'org.jetbrains.kotlin.android'
+plugins {
+  alias(libs.plugins.android.library)
+  alias(libs.plugins.kotlin.android)
+  alias(libs.plugins.publish)
+  alias(libs.plugins.dokka)
+  id("app.cash.sqldelight.toolchain.runtime")
+  alias(libs.plugins.binaryCompatibilityValidator)
+}
 
 archivesBaseName = 'sqldelight-android-driver'
 
 android {
-  compileSdkVersion versions.compileSdk
+  compileSdk libs.versions.compileSdk.get() as int
+  namespace = "app.cash.sqldelight.driver.android"
 
-  lintOptions {
+  lint {
     textReport true
-    textOutput 'stdout'
+    textOutput file("$reportsDir/lint-results.txt")
   }
 
   defaultConfig {
-    minSdkVersion versions.minSdk
+    minSdk libs.versions.minSdk.get() as int
   }
 
   buildFeatures {
     buildConfig = false
   }
+
+  testOptions  {
+    unitTests {
+      includeAndroidResources = true
+    }
+  }
 }
 
 dependencies {
-  // workaround for https://youtrack.jetbrains.com/issue/KT-27059
-  api "${project.property("GROUP")}:runtime-jvm:${project.property("VERSION_NAME")}"
-  api deps.androidx.sqlite
+  api projects.runtime
+  api libs.androidx.sqlite
 
-  implementation deps.androidx.sqliteFramework
+  implementation libs.androidx.sqliteFramework
 
-  testImplementation project(':drivers:driver-test')
-  testImplementation deps.junit
-  testImplementation deps.androidx.test.core
-  testImplementation deps.robolectric
-}
-
-// workaround for https://youtrack.jetbrains.com/issue/KT-27059
-configurations.all {
-    resolutionStrategy.dependencySubstitution {
-        substitute module("${project.property("GROUP")}:runtime-jvm:${project.property("VERSION_NAME")}") with project(':runtime')
-    }
+  testImplementation projects.drivers.driverTest
+  testImplementation libs.junit
+  testImplementation libs.androidx.test.core
+  testImplementation libs.robolectric
 }
 
 apply from: rootProject.file('gradle/gradle-mvn-push.gradle')

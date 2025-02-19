@@ -1,43 +1,32 @@
-buildscript {
-  apply from: "${projectDir.absolutePath}/../buildscript.gradle"
-}
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
 
-apply plugin: 'org.jetbrains.kotlin.multiplatform'
-apply plugin: 'com.squareup.sqldelight'
-apply plugin: 'com.android.library'
-
-apply from: '../../../../gradle/dependencies.gradle'
-
-repositories {
-  maven {
-    url "file://${projectDir.absolutePath}/../../../../build/localMaven"
-  }
-  mavenCentral()
-  google()
+plugins {
+  alias(libs.plugins.kotlin.multiplatform)
+  alias(libs.plugins.sqldelight)
+  alias(libs.plugins.android.library)
 }
 
 android {
-  compileSdkVersion versions.compileSdk
+  namespace "app.cash.sqldelight.integration"
+
+  compileSdk libs.versions.compileSdk.get() as int
 
   defaultConfig {
-    minSdkVersion versions.minSdk
-    testInstrumentationRunner 'android.support.test.runner.AndroidJUnitRunner'
+    minSdk libs.versions.minSdk.get() as int
+    testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
   }
 
-  lintOptions {
-    textOutput 'stdout'
+  lint {
+    textOutput file("$reportsDir/lint-results.txt")
     textReport true
-  }
-
-  compileOptions {
-    targetCompatibility 1.8
-    sourceCompatibility 1.8
   }
 }
 
 sqldelight {
-  QueryWrapper {
-    packageName = "com.squareup.sqldelight.integration"
+  databases {
+    QueryWrapper {
+      packageName = "app.cash.sqldelight.integration"
+    }
   }
 }
 
@@ -49,23 +38,25 @@ kotlin {
   sourceSets {
     commonTest {
       dependencies {
-        implementation deps.kotlin.test.common
-        implementation deps.kotlin.test.commonAnnotations
-        implementation deps.stately.core
-        implementation deps.stately.concurrency
-        implementation "com.squareup.sqldelight:runtime:${com.squareup.sqldelight.VersionKt.VERSION}"
+        implementation libs.kotlin.test
+        implementation libs.stately.concurrency
+        implementation "app.cash.sqldelight:runtime:${app.cash.sqldelight.VersionKt.VERSION}"
       }
     }
     androidMain {
       dependencies {
-        implementation "com.squareup.sqldelight:sqlite-driver:${com.squareup.sqldelight.VersionKt.VERSION}"
+        implementation "app.cash.sqldelight:sqlite-driver:${app.cash.sqldelight.VersionKt.VERSION}"
       }
     }
     androidTest {
       dependencies {
-        implementation deps.kotlin.test.junit
-        implementation "com.squareup.sqldelight:sqlite-driver:${com.squareup.sqldelight.VersionKt.VERSION}"
+        implementation libs.kotlin.test.junit
+        implementation "app.cash.sqldelight:sqlite-driver:${app.cash.sqldelight.VersionKt.VERSION}"
       }
     }
   }
+}
+
+tasks.withType(KotlinCompilationTask.class).configureEach {
+  compilerOptions.jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_1_8)
 }

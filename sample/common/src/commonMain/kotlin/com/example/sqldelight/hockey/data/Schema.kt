@@ -1,32 +1,38 @@
 package com.example.sqldelight.hockey.data
 
+import app.cash.sqldelight.EnumColumnAdapter
+import app.cash.sqldelight.adapter.primitive.FloatColumnAdapter
+import app.cash.sqldelight.adapter.primitive.IntColumnAdapter
+import app.cash.sqldelight.db.QueryResult
+import app.cash.sqldelight.db.SqlDriver
+import app.cash.sqldelight.db.SqlSchema
 import com.example.sqldelight.hockey.HockeyDb
 import com.example.sqldelight.hockey.data.PlayerVals.Position
 import com.example.sqldelight.hockey.data.PlayerVals.Shoots
-import com.squareup.sqldelight.EnumColumnAdapter
-import com.squareup.sqldelight.db.SqlDriver
 
 fun createQueryWrapper(driver: SqlDriver): HockeyDb {
   return HockeyDb(
     driver = driver,
     teamAdapter = Team.Adapter(
-      foundedAdapter = DateAdapter()
+      foundedAdapter = DateAdapter(),
     ),
     playerAdapter = Player.Adapter(
       shootsAdapter = EnumColumnAdapter(),
       positionAdapter = EnumColumnAdapter(),
-      birth_dateAdapter = DateAdapter()
-    )
+      birth_dateAdapter = DateAdapter(),
+      numberAdapter = IntColumnAdapter,
+      ageAdapter = IntColumnAdapter,
+      weightAdapter = FloatColumnAdapter,
+    ),
   )
 }
 
-object Schema : SqlDriver.Schema by HockeyDb.Schema {
-  override fun create(driver: SqlDriver) {
+object Schema : SqlSchema<QueryResult.Value<Unit>> by HockeyDb.Schema {
+  override fun create(driver: SqlDriver): QueryResult.Value<Unit> {
     HockeyDb.Schema.create(driver)
 
     // Seed data time!
     createQueryWrapper(driver).apply {
-
       val ducks = "Anaheim Ducks"
       val pens = "Pittsburgh Penguins"
       val sharks = "San Jose Sharks"
@@ -38,30 +44,31 @@ object Schema : SqlDriver.Schema by HockeyDb.Schema {
 
       playerQueries.insertPlayer(
         "Corey", "Perry", 10, ducks, 30, 210F, Date(1985, 5, 16),
-        Shoots.RIGHT, Position.RIGHT_WING
+        Shoots.RIGHT, Position.RIGHT_WING,
       )
       playerQueries.insertPlayer(
         "Ryan", "Getzlaf", 15, ducks, 30, 221F, Date(1985, 5, 10),
-        Shoots.RIGHT, Position.CENTER
+        Shoots.RIGHT, Position.CENTER,
       )
       teamQueries.setCaptain(15, ducks)
 
       playerQueries.insertPlayer(
         "Sidney", "Crosby", 87, pens, 28, 200F, Date(1987, 8, 7),
-        Shoots.LEFT, Position.CENTER
+        Shoots.LEFT, Position.CENTER,
       )
       teamQueries.setCaptain(87, pens)
 
       playerQueries.insertPlayer(
         "Erik", "Karlsson", 65, sharks, 28, 190F, Date(1990, 5, 31),
-        Shoots.RIGHT, Position.DEFENSE
+        Shoots.RIGHT, Position.DEFENSE,
       )
 
       playerQueries.insertPlayer(
         "Joe", "Pavelski", 8, sharks, 31, 194F, Date(1984, 7, 18),
-        Shoots.RIGHT, Position.CENTER
+        Shoots.RIGHT, Position.CENTER,
       )
       teamQueries.setCaptain(8, sharks)
     }
+    return QueryResult.Unit
   }
 }

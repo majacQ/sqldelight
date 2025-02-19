@@ -1,7 +1,14 @@
-apply plugin: 'org.jetbrains.kotlin.jvm'
-apply plugin: 'com.alecstrong.grammar.kit.composer'
+import app.cash.sqldelight.toolchain.PluginVersion
 
-test {
+plugins {
+  alias(libs.plugins.kotlin.jvm)
+  alias(libs.plugins.grammarKitComposer)
+  alias(libs.plugins.publish)
+  alias(libs.plugins.dokka)
+  id("app.cash.sqldelight.toolchain.compiler")
+}
+
+tasks.named('test') {
   testLogging {
     events "passed", "skipped", "failed"
     exceptionFormat "full"
@@ -11,49 +18,46 @@ test {
   }
 }
 
-sourceSets {
-  main.java.srcDir "gen"
+grammarKit {
+  intellijRelease.set(libs.versions.idea)
 }
 
 dependencies {
-  api deps.sqlitePsi
+  api projects.sqldelightCompiler.dialect
 
-  implementation deps.kotlinPoet
+  implementation libs.jgrapht
 
-  compileOnly deps.sqliteJdbc
-  compileOnly deps.intellij.core
-  compileOnly deps.intellij.lang
-  compileOnly deps.intellij.java
-  compileOnly deps.intellij.testFramework
-
-  testImplementation deps.burst
-  testImplementation deps.sqliteJdbc
-  testImplementation deps.intellij.core
-  testImplementation deps.intellij.lang
-  testImplementation deps.intellij.java
-  testImplementation deps.intellij.testFramework
-  testImplementation deps.junit
-  testImplementation deps.truth
-  testImplementation project(':test-util')
-}
-
-task pluginVersion {
-  def outputDir = file("gen")
-
-  inputs.property 'version', version
-  outputs.dir outputDir
-
-  doLast {
-    def versionFile = file("$outputDir/com/squareup/sqldelight/Version.kt")
-    versionFile.parentFile.mkdirs()
-    versionFile.text = """// Generated file. Do not edit!
-package com.squareup.sqldelight
-
-val VERSION = "${project.version}"
-"""
+  compileOnly libs.sqliteJdbc
+  compileOnly(projects.sqldelightCompiler.environment) {
+    targetConfiguration = "shadow"
   }
+
+  testImplementation libs.burst
+  testImplementation libs.sqliteJdbc
+  testImplementation(projects.sqldelightCompiler.environment) {
+    targetConfiguration = "shadow"
+  }
+
+  testImplementation libs.kotlin.test.junit
+  testImplementation libs.truth
+  testImplementation projects.sqldelightGradlePlugin
+  testImplementation projects.testUtil
+  testImplementation projects.dialects.hsql
+  testImplementation projects.dialects.mysql
+  testImplementation projects.dialects.postgresql
+  testImplementation projects.dialects.sqlite318
+  testImplementation projects.dialects.sqlite324
+  testImplementation projects.dialects.sqlite325
+  testImplementation projects.dialects.sqlite330
+  testImplementation projects.dialects.sqlite333
+  testImplementation projects.dialects.sqlite335
+  testImplementation projects.dialects.sqlite338
 }
 
-tasks.named('compileKotlin').configure { dependsOn('pluginVersion') }
+TaskProvider<PluginVersion> pluginVersion = tasks.register('pluginVersion', PluginVersion)
+
+sourceSets.main {
+  kotlin.srcDir(pluginVersion)
+}
 
 apply from: "$rootDir/gradle/gradle-mvn-push.gradle"

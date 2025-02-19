@@ -1,38 +1,73 @@
-name: Publish the mkdocs to gh-pages
+name: Publish the mkdocs to GitHub Pages
 
 on:
+  push:
+    branches: [master]
   release:
     types: [published]
+  workflow_dispatch:
+
+concurrency:
+  group: "docs"
+  cancel-in-progress: false
 
 jobs:
   deploy-website:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
       - name: Checkout the repo
-        uses: actions/checkout@v2
-
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v2
+        uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - name: Set up Java
+        uses: actions/setup-java@v4
         with:
-          python-version: 3.8
+          distribution: 'zulu'
+          java-version-file: .github/workflows/.ci-java-version
+      - name: Setup gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-cleanup: always
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.11 # See the pinned version in renovate.json too
+
+      - name: Get Docs Version
+        run: cat gradle.properties | grep --color=never VERSION_NAME >> $GITHUB_OUTPUT
+        id: version
 
       - name: Prep mkdocs
-        run: .github/workflows/prepare_mkdocs.sh
-
-      - name: Build mkdocs
         run: |
-          pip3 install -r requirements.txt
-          mkdocs build
+          pip3 install --no-deps -r .github/workflows/requirements.txt
+          .github/workflows/prepare_mkdocs.sh ${{ steps.version.outputs.VERSION_NAME }}
 
-      - name: Deploy 🚀
-        if: success()
-        uses: JamesIves/github-pages-deploy-action@releases/v3
-        with:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          BRANCH: gh-pages # The branch the action should deploy to.
-          FOLDER: site # The folder the action should deploy.
-          SINGLE_COMMIT: true
+      - name: Configure git for mike
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git fetch origin gh-pages --depth=1
+
+      - name: Deploy SNAPSHOT Docs with mike 🗿
+        env:
+          SQLDELIGHT_VERSION: ${{ steps.version.outputs.VERSION_NAME }}
+        if: ${{ success() && contains(steps.version.outputs.VERSION_NAME, 'SNAPSHOT') }}
+        run: mike deploy -u --push ${{ steps.version.outputs.VERSION_NAME }} snapshot
+
+      - name: Deploy Docs with mike 🚀
+        env:
+          SQLDELIGHT_VERSION: ${{ steps.version.outputs.VERSION_NAME }}
+        if: ${{ success() && !contains(steps.version.outputs.VERSION_NAME , 'SNAPSHOT') }}
+        run: mike deploy -u --push ${{ steps.version.outputs.VERSION_NAME }} latest
 
 env:
-  GRADLE_OPTS: -Dorg.gradle.configureondemand=true -Dorg.gradle.parallel=true -Dkotlin.incremental=false -Dorg.gradle.jvmargs="-Xmx3g -XX:MaxPermSize=2048m -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8"
+  GRADLE_OPTS: -Dorg.gradle.caching=true

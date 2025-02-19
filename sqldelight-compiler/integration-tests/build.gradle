@@ -1,10 +1,14 @@
-apply plugin: 'org.jetbrains.kotlin.jvm'
+plugins {
+  alias(libs.plugins.kotlin.jvm)
+  id("app.cash.sqldelight.toolchain.compiler")
+}
 
 dependencies {
-  testImplementation project(':runtime')
-  testImplementation project(':drivers:sqlite-driver')
-  testImplementation project(':test-util')
+  testImplementation projects.runtime
+  testImplementation projects.drivers.sqliteDriver
+  testImplementation projects.testUtil
 
-  testImplementation deps.truth
-  testImplementation deps.junit
+  testImplementation libs.sqlPsi
+  testImplementation libs.truth
+  testImplementation libs.junit
 }

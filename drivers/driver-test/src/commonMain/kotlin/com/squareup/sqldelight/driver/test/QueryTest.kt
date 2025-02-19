@@ -1,10 +1,12 @@
 package com.squareup.sqldelight.driver.test
 
-import com.squareup.sqldelight.Query
-import com.squareup.sqldelight.db.SqlCursor
-import com.squareup.sqldelight.db.SqlDriver
-import com.squareup.sqldelight.internal.Atomic
-import com.squareup.sqldelight.internal.copyOnWriteList
+import app.cash.sqldelight.Query
+import app.cash.sqldelight.db.AfterVersion
+import app.cash.sqldelight.db.QueryResult
+import app.cash.sqldelight.db.SqlCursor
+import app.cash.sqldelight.db.SqlDriver
+import app.cash.sqldelight.db.SqlSchema
+import co.touchlab.stately.concurrency.AtomicInt
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -15,20 +17,21 @@ import kotlin.test.assertTrue
 abstract class QueryTest {
   private val mapper = { cursor: SqlCursor ->
     TestData(
-      cursor.getLong(0)!!, cursor.getString(1)!!
+      cursor.getLong(0)!!,
+      cursor.getString(1)!!,
     )
   }
 
   private lateinit var driver: SqlDriver
 
-  abstract fun setupDatabase(schema: SqlDriver.Schema): SqlDriver
+  abstract fun setupDatabase(schema: SqlSchema<QueryResult.Value<Unit>>): SqlDriver
 
   @BeforeTest fun setup() {
     driver = setupDatabase(
-      schema = object : SqlDriver.Schema {
-        override val version: Int = 1
+      schema = object : SqlSchema<QueryResult.Value<Unit>> {
+        override val version: Long = 1
 
-        override fun create(driver: SqlDriver) {
+        override fun create(driver: SqlDriver): QueryResult.Value<Unit> {
           driver.execute(
             null,
             """
@@ -37,18 +40,21 @@ abstract class QueryTest {
                 value TEXT NOT NULL
                );
             """.trimIndent(),
-            0
+            0,
           )
+          return QueryResult.Unit
         }
 
         override fun migrate(
           driver: SqlDriver,
-          oldVersion: Int,
-          newVersion: Int
-        ) {
+          oldVersion: Long,
+          newVersion: Long,
+          vararg callbacks: AfterVersion,
+        ): QueryResult.Value<Unit> {
           // No-op.
+          return QueryResult.Unit
         }
-      }
+      },
     )
   }
 
@@ -129,53 +135,50 @@ abstract class QueryTest {
   }
 
   @Test fun notifyDataChangedNotifiesListeners() {
-    val notifies = Atomic(0)
+    val notifies = AtomicInt(0)
     val query = testDataQuery()
-    val listener = object : Query.Listener {
-      override fun queryResultsChanged() {
-        notifies.increment()
-      }
-    }
+    val listener = Query.Listener { notifies.incrementAndGet() }
 
     query.addListener(listener)
     assertEquals(0, notifies.get())
 
-    query.notifyDataChanged()
+    driver.notifyListeners("test")
     assertEquals(1, notifies.get())
   }
 
   @Test fun removeListenerActuallyRemovesListener() {
-    val notifies = Atomic(0)
+    val notifies = AtomicInt(0)
     val query = testDataQuery()
-    val listener = object : Query.Listener {
-      override fun queryResultsChanged() {
-        notifies.increment()
-      }
-    }
+    val listener = Query.Listener { notifies.incrementAndGet() }
 
     query.addListener(listener)
     query.removeListener(listener)
-    query.notifyDataChanged()
+    driver.notifyListeners("test")
     assertEquals(0, notifies.get())
   }
 
   private fun insertTestData(testData: TestData) {
     driver.execute(1, "INSERT INTO test VALUES (?, ?)", 2) {
-      bindLong(1, testData.id)
-      bindString(2, testData.value)
+      bindLong(0, testData.id)
+      bindString(1, testData.value)
     }
   }
 
   private fun testDataQuery(): Query<TestData> {
-    return object : Query<TestData>(copyOnWriteList(), mapper) {
-      override fun execute(): SqlCursor {
-        return driver.executeQuery(0, "SELECT * FROM test", 0)
+    return object : Query<TestData>(mapper) {
+      override fun <R> execute(mapper: (SqlCursor) -> QueryResult<R>): QueryResult<R> {
+        return driver.executeQuery(0, "SELECT * FROM test", mapper, 0, null)
+      }
+
+      override fun addListener(listener: Listener) {
+        driver.addListener("test", listener = listener)
+      }
+
+      override fun removeListener(listener: Listener) {
+        driver.removeListener("test", listener = listener)
       }
     }
   }
 
   private data class TestData(val id: Long, val value: String)
 }
-
-// Not actually atomic, the type needs to be as the listeners get frozen.
-private fun Atomic<Int>.increment() = set(get() + 1)

@@ -1,33 +1,37 @@
 package com.squareup.sqldelight.drivers.native.connectionpool
 
+import app.cash.sqldelight.db.AfterVersion
+import app.cash.sqldelight.db.QueryResult
+import app.cash.sqldelight.db.SqlDriver
+import app.cash.sqldelight.db.SqlSchema
+import app.cash.sqldelight.driver.native.NativeSqliteDriver
+import app.cash.sqldelight.driver.native.wrapConnection
 import co.touchlab.sqliter.DatabaseConfiguration
 import co.touchlab.sqliter.DatabaseFileContext
 import co.touchlab.sqliter.JournalMode
-import co.touchlab.testhelp.concurrency.currentTimeMillis
 import co.touchlab.testhelp.concurrency.sleep
-import com.squareup.sqldelight.db.SqlDriver
-import com.squareup.sqldelight.drivers.native.NativeSqliteDriver
-import com.squareup.sqldelight.drivers.native.wrapConnection
-import kotlin.native.concurrent.AtomicInt
+import kotlin.concurrent.AtomicInt
 import kotlin.native.concurrent.Worker
 import kotlin.test.AfterTest
+import kotlin.time.TimeSource
 
 abstract class BaseConcurrencyTest {
   fun countRows(myDriver: SqlDriver = driver): Long {
-    val cur = myDriver.executeQuery(0, "SELECT count(*) FROM test", 0)
-    try {
-      cur.next()
-      val count = cur.getLong(0)
-      return count!!
-    } finally {
-      cur.close()
-    }
+    return myDriver.executeQuery(
+      0,
+      "SELECT count(*) FROM test",
+      {
+        it.next()
+        QueryResult.Value(it.getLong(0)!!)
+      },
+      0,
+    ).value
   }
 
-  private var _driver: SqlDriver? = null
+  private var backingDriver: SqlDriver? = null
   private var dbName: String? = null
   internal val driver: SqlDriver
-    get() = _driver!!
+    get() = backingDriver!!
 
   internal inner class ConcurrentContext {
     private val myWorkers = arrayListOf<Worker>()
@@ -52,10 +56,10 @@ abstract class BaseConcurrencyTest {
   }
 
   fun setupDatabase(
-    schema: SqlDriver.Schema,
+    schema: SqlSchema<QueryResult.Value<Unit>>,
     dbType: DbType,
     configBase: DatabaseConfiguration,
-    maxReaderConnections: Int = 4
+    maxReaderConnections: Int = 4,
   ): SqlDriver {
     // Some failing tests can leave the db in a weird state, so on each run we have a different db per test
     val name = "testdb_${globalDbCount.addAndGet(1)}"
@@ -68,41 +72,44 @@ abstract class BaseConcurrencyTest {
         wrapConnection(conn) { driver ->
           schema.create(driver)
         }
-      }
+      },
     )
     return when (dbType) {
       DbType.RegularWal -> {
         NativeSqliteDriver(
           configCommon,
-          maxReaderConnections = maxReaderConnections
+          maxReaderConnections = maxReaderConnections,
         )
       }
       DbType.RegularDelete -> {
         val config = configCommon.copy(journalMode = JournalMode.DELETE)
         NativeSqliteDriver(
           config,
-          maxReaderConnections = maxReaderConnections
+          maxReaderConnections = maxReaderConnections,
         )
       }
       DbType.InMemoryShared -> {
         val config = configCommon.copy(inMemory = true)
         NativeSqliteDriver(
           config,
-          maxReaderConnections = maxReaderConnections
+          maxReaderConnections = maxReaderConnections,
         )
       }
       DbType.InMemorySingle -> {
         val config = configCommon.copy(name = null, inMemory = true)
         NativeSqliteDriver(
           config,
-          maxReaderConnections = maxReaderConnections
+          maxReaderConnections = maxReaderConnections,
         )
       }
     }
   }
 
   enum class DbType {
-    RegularWal, RegularDelete, InMemoryShared, InMemorySingle
+    RegularWal,
+    RegularDelete,
+    InMemoryShared,
+    InMemorySingle,
   }
 
   fun createDriver(
@@ -110,10 +117,10 @@ abstract class BaseConcurrencyTest {
     configBase: DatabaseConfiguration = DatabaseConfiguration(name = null, version = 1, create = {}),
   ): SqlDriver {
     return setupDatabase(
-      schema = object : SqlDriver.Schema {
-        override val version: Int = 1
+      schema = object : SqlSchema<QueryResult.Value<Unit>> {
+        override val version: Long = 1
 
-        override fun create(driver: SqlDriver) {
+        override fun create(driver: SqlDriver): QueryResult.Value<Unit> {
           driver.execute(
             null,
             """
@@ -122,50 +129,51 @@ abstract class BaseConcurrencyTest {
                 value TEXT NOT NULL
                );
             """.trimIndent(),
-            0
+            0,
           )
+          return QueryResult.Unit
         }
 
         override fun migrate(
           driver: SqlDriver,
-          oldVersion: Int,
-          newVersion: Int
-        ) {
-          // No-op.
-        }
+          oldVersion: Long,
+          newVersion: Long,
+          vararg callbacks: AfterVersion,
+        ) = QueryResult.Unit
       },
       dbType,
-      configBase
+      configBase,
     )
   }
 
   internal fun waitFor(timeout: Long = 10_000, block: () -> Boolean) {
-    val start = currentTimeMillis()
+    val start = TimeSource.Monotonic.markNow()
     var wasTimeout = false
 
     while (!block() && !wasTimeout) {
       sleep(200)
-      wasTimeout = (currentTimeMillis() - start) > timeout
+      wasTimeout = (TimeSource.Monotonic.markNow() - start).inWholeMilliseconds > timeout
     }
 
-    if (wasTimeout)
+    if (wasTimeout) {
       throw IllegalStateException("Timeout $timeout exceeded")
+    }
   }
 
   fun initDriver(dbType: DbType) {
-    _driver = createDriver(dbType)
+    backingDriver = createDriver(dbType)
   }
 
   @AfterTest
   fun tearDown() {
-    _driver?.close()
+    backingDriver?.close()
     dbName?.let { DatabaseFileContext.deleteDatabase(it) }
   }
 
   internal fun insertTestData(testData: TestData, driver: SqlDriver = this.driver) {
     driver.execute(1, "INSERT INTO test VALUES (?, ?)", 2) {
-      bindLong(1, testData.id)
-      bindString(2, testData.value)
+      bindLong(0, testData.id)
+      bindString(1, testData.value)
     }
   }
 

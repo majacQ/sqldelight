@@ -1,0 +1,23 @@
+pluginManagement {
+    includeBuild("../build-logic-tests")
+}
+
+plugins {
+    id("sqldelightTests")
+}
+
+rootProject.name = 'sqldelight-mysql-integration'
+
+dependencyResolutionManagement {
+    versionCatalogs {
+        libs {
+            library('sqldelight-mysql', 'app.cash.sqldelight', 'mysql-dialect').withoutVersion()
+        }
+    }
+}
+
+includeBuild("../../../../") {
+    dependencySubstitution {
+        substitute module("app.cash.sqldelight:mysql-dialect") using project(":dialects:mysql")
+    }
+}

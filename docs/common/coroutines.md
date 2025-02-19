@@ -1,11 +1,18 @@
 ## Flow
 
-To consume a query as a Flow, depend on the Coroutines extensions artifact and use the extension method it provides:
+To consume a query as a Flow, add the coroutines extensions artifact as a dependency and use the extension functions it provides:
 
-```groovy
-dependencies {
-  implementation "com.squareup.sqldelight:coroutines-extensions-jvm:{{ versions.sqldelight }}"
-}
-```
+=== "Kotlin"
+    ```kotlin
+    dependencies {
+      implementation("app.cash.sqldelight:coroutines-extensions:{{ versions.sqldelight }}")
+    }
+    ```
+=== "Groovy"
+    ```groovy
+    dependencies {
+      implementation "app.cash.sqldelight:coroutines-extensions:{{ versions.sqldelight }}"
+    }
+    ```
 
 {% include 'common/coroutines-usage.md' %}

@@ -1,7 +1,7 @@
 package com.sample
 
+import app.cash.sqldelight.ColumnAdapter
 import com.squareup.Redacted
-import com.squareup.sqldelight.ColumnAdapter
 import java.util.List
 import kotlin.Boolean
 import kotlin.ByteArray
@@ -17,20 +17,10 @@ public data class Person(
   public val last_name: String?,
   public val is_cool: Boolean,
   public val friends: List<Person>?,
-  public val shhh_its_secret: @Redacted String
+  @Redacted
+  public val shhh_its_secret: String,
 ) {
-  public override fun toString(): String = """
-  |Person [
-  |  _id: $_id
-  |  name: $name
-  |  last_name: $last_name
-  |  is_cool: $is_cool
-  |  friends: $friends
-  |  shhh_its_secret: $shhh_its_secret
-  |]
-  """.trimMargin()
-
   public class Adapter(
-    public val friendsAdapter: ColumnAdapter<List<Person>, ByteArray>
+    public val friendsAdapter: ColumnAdapter<List<Person>, ByteArray>,
   )
 }

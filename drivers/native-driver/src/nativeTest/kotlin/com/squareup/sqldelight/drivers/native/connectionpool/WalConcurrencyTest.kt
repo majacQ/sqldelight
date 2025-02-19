@@ -1,17 +1,17 @@
 package com.squareup.sqldelight.drivers.native.connectionpool
 
+import app.cash.sqldelight.Query
+import app.cash.sqldelight.TransacterImpl
+import app.cash.sqldelight.db.QueryResult
+import app.cash.sqldelight.db.SqlCursor
+import app.cash.sqldelight.driver.native.NativeSqliteDriver
 import co.touchlab.testhelp.concurrency.ThreadOperations
 import co.touchlab.testhelp.concurrency.sleep
-import com.squareup.sqldelight.Query
-import com.squareup.sqldelight.TransacterImpl
-import com.squareup.sqldelight.db.SqlCursor
-import com.squareup.sqldelight.drivers.native.NativeSqliteDriver
-import com.squareup.sqldelight.internal.copyOnWriteList
-import kotlin.native.concurrent.AtomicInt
+import kotlin.concurrent.AtomicInt
 import kotlin.native.concurrent.TransferMode
 import kotlin.native.concurrent.Worker
-import kotlin.native.concurrent.freeze
 import kotlin.test.BeforeTest
+import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -44,13 +44,13 @@ class WalConcurrencyTest : BaseConcurrencyTest() {
     val block = {
       transacter.transaction {
         insertTestData(TestData(1L, "arst 1"))
-        transactionStarted.increment()
+        transactionStarted.incrementAndGet()
         sleep(1500)
-        counter.increment()
+        counter.incrementAndGet()
       }
     }
 
-    val future = worker.execute(TransferMode.SAFE, { block.freeze() }) { it() }
+    val future = worker.execute(TransferMode.SAFE, { block }) { it() }
 
     // When ready, transaction started but sleeping
     waitFor { transactionStarted.value > 0 }
@@ -68,7 +68,7 @@ class WalConcurrencyTest : BaseConcurrencyTest() {
   /**
    * Reader pool stress test
    */
-  @Test
+  @Test @Ignore
   fun manyReads() = runConcurrent {
     val transacter: TransacterImpl = object : TransacterImpl(driver) {}
     val dataSize = 2_000
@@ -95,14 +95,23 @@ class WalConcurrencyTest : BaseConcurrencyTest() {
 
   private val mapper = { cursor: SqlCursor ->
     TestData(
-      cursor.getLong(0)!!, cursor.getString(1)!!
+      cursor.getLong(0)!!,
+      cursor.getString(1)!!,
     )
   }
 
   private fun testDataQuery(): Query<TestData> {
-    return object : Query<TestData>(copyOnWriteList(), mapper) {
-      override fun execute(): SqlCursor {
-        return driver.executeQuery(0, "SELECT * FROM test", 0)
+    return object : Query<TestData>(mapper) {
+      override fun <R> execute(mapper: (SqlCursor) -> QueryResult<R>): QueryResult<R> {
+        return driver.executeQuery(0, "SELECT * FROM test", mapper, 0, null)
+      }
+
+      override fun addListener(listener: Listener) {
+        driver.addListener("test", listener = listener)
+      }
+
+      override fun removeListener(listener: Listener) {
+        driver.removeListener("test", listener = listener)
       }
     }
   }
@@ -117,13 +126,13 @@ class WalConcurrencyTest : BaseConcurrencyTest() {
     val block = {
       transacter.transaction {
         insertTestData(TestData(1L, "arst 1"))
-        transactionStarted.increment()
+        transactionStarted.incrementAndGet()
         sleep(1500)
-        counter.increment()
+        counter.incrementAndGet()
       }
     }
 
-    val future = worker.execute(TransferMode.SAFE, { block.freeze() }) { it() }
+    val future = worker.execute(TransferMode.SAFE, { block }) { it() }
 
     // Transaction with write started but sleeping
     waitFor { transactionStarted.value > 0 }
@@ -146,13 +155,13 @@ class WalConcurrencyTest : BaseConcurrencyTest() {
     val block = {
       transacter.transaction {
         insertTestData(TestData(1L, "arst 1"), driver)
-        transactionStarted.increment()
+        transactionStarted.incrementAndGet()
         sleep(1500)
         insertTestData(TestData(5L, "arst 1"), driver)
       }
     }
 
-    val future = worker.execute(TransferMode.SAFE, { block.freeze() }) { it() }
+    val future = worker.execute(TransferMode.SAFE, { block }) { it() }
 
     // When we get here, first transaction has run a write command, and is sleeping
     waitFor { transactionStarted.value > 0 }

@@ -1,20 +1,21 @@
-apply plugin: 'org.jetbrains.kotlin.jvm'
+plugins {
+  alias(libs.plugins.kotlin.jvm)
+  alias(libs.plugins.publish)
+  alias(libs.plugins.dokka)
+  id("app.cash.sqldelight.toolchain.compiler")
+}
 
 dependencies {
   // These dependencies will not be shadowed by sqldelight-gradle-plugin
-  compileOnly deps.sqliteJdbc
-  compileOnly deps.objectDiff
-  compileOnly deps.schemaCrawler.tools
-  compileOnly deps.schemaCrawler.sqlite
+  compileOnly(projects.sqliteMigrations.environment) {
+    targetConfiguration = "shadow"
+  }
 
-  implementation deps.sqlitePsi
-
-  testImplementation deps.sqliteJdbc
-  testImplementation deps.objectDiff
-  testImplementation deps.schemaCrawler.tools
-  testImplementation deps.schemaCrawler.sqlite
-  testImplementation deps.junit
-  testImplementation deps.truth
+  compileOnly libs.sqlPsi
 }
 
 apply from: "$rootDir/gradle/gradle-mvn-push.gradle"
+
+tasks.named('dokkaHtmlMultiModule') {
+  it.enabled = false
+}

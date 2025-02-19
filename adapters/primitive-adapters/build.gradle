@@ -1,0 +1,26 @@
+plugins {
+  alias(libs.plugins.publish)
+  alias(libs.plugins.dokka)
+  id("app.cash.sqldelight.multiplatform")
+  id("app.cash.sqldelight.toolchain.runtime")
+  alias(libs.plugins.binaryCompatibilityValidator)
+}
+
+archivesBaseName = 'sqldelight-primitive-adapters'
+
+kotlin {
+  sourceSets {
+    commonMain {
+      dependencies {
+        api projects.runtime
+      }
+    }
+    commonTest {
+      dependencies {
+        implementation libs.kotlin.test
+      }
+    }
+  }
+}
+
+apply from: "$rootDir/gradle/gradle-mvn-push.gradle"

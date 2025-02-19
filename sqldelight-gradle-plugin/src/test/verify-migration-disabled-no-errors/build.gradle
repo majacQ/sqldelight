@@ -1,0 +1,14 @@
+plugins {
+  alias(libs.plugins.kotlin.jvm)
+  alias(libs.plugins.sqldelight)
+}
+
+sqldelight {
+  databases {
+    Database {
+      packageName = "com.example"
+      dialect("app.cash.sqldelight:hsql-dialect:${app.cash.sqldelight.VersionKt.VERSION}")
+      verifyMigrations = false
+    }
+  }
+}

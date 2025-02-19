@@ -1,31 +1,19 @@
-buildscript {
-  apply from: "${projectDir.absolutePath}/../buildscript.gradle"
-}
-
-apply plugin: 'org.jetbrains.kotlin.multiplatform'
-apply plugin: 'com.squareup.sqldelight'
-
-repositories {
-  maven {
-    url "file://${projectDir.absolutePath}/../../../../build/localMaven"
-  }
-  mavenCentral()
+plugins {
+  alias(libs.plugins.kotlin.multiplatform)
+  alias(libs.plugins.sqldelight)
 }
 
 sqldelight {
-  Database {
-    packageName = "com.sample"
+  databases {
+    Database {
+      packageName = "com.sample"
+    }
   }
 }
 
 kotlin {
   targetFromPreset(presets.jvm, 'jvm')
   targetFromPreset(presets.js, 'js')
-  targetFromPreset(presets.iosArm32, 'iosArm32') {
-    binaries {
-      framework()
-    }
-  }
   targetFromPreset(presets.iosArm64, 'iosArm64') {
     binaries {
       framework()

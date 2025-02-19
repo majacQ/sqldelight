@@ -1,105 +1,102 @@
-apply plugin: 'org.jetbrains.kotlin.multiplatform'
+import org.jetbrains.kotlin.gradle.plugin.mpp.NativeOutputKind
+
+plugins {
+  alias(libs.plugins.publish)
+  alias(libs.plugins.dokka)
+  id("app.cash.sqldelight.multiplatform")
+  id("app.cash.sqldelight.toolchain.runtime")
+  alias(libs.plugins.binaryCompatibilityValidator)
+  id("kotlinx-atomicfu")
+}
 
 archivesBaseName = 'sqldelight-coroutines-extensions'
 
-// TODO work around for https://youtrack.jetbrains.com/issue/KT-27170
-configurations {
-  compileClasspath
-}
-
 kotlin {
+  applyDefaultHierarchyTemplate {
+    it.common {
+      // not using commonTest due https://github.com/touchlab/SQLiter/issues/117
+      it.group("testable") {
+        it.withJvm()
+        it.withJs()
+        it.group("testableNative") {
+          it.group("apple") {}
+          it.group("linux") {}
+          it.group("mingw") {}
+          // it.group("androidNative")
+        }
+      }
+    }
+  }
+
   sourceSets {
     commonMain {
       dependencies {
-        api project(':runtime')
-        api deps.kotlin.coroutines.core
+        api projects.runtime
+        api libs.kotlin.coroutines.core
+        implementation project(":extensions:async-extensions")
       }
     }
     commonTest {
       dependencies {
-        implementation deps.kotlin.test.common
-        implementation deps.kotlin.test.commonAnnotations
-        implementation deps.stately.collections
-        implementation deps.turbine
+        implementation libs.kotlin.coroutines.test
+        implementation libs.kotlin.test
+        implementation libs.turbine
       }
     }
     jvmTest {
       dependencies {
-        implementation deps.kotlin.test.junit
-        implementation project(':drivers:sqlite-driver')
+        implementation libs.kotlin.test.junit
+        implementation projects.drivers.sqliteDriver
+        implementation libs.stately.concurrency
+      }
+      languageSettings {
+        optIn('kotlinx.coroutines.ExperimentalCoroutinesApi')
       }
     }
     jsTest {
       dependencies {
-        implementation deps.kotlin.test.js
-        implementation project(':drivers:sqljs-driver')
+        implementation libs.stately.concurrency
+        implementation projects.drivers.webWorkerDriver
+        implementation npm("sql.js", libs.versions.sqljs.get())
+        implementation npm("@cashapp/sqldelight-sqljs-worker", projects.drivers.webWorkerDriver.sqljs.dependencyProject.projectDir)
       }
     }
-    nativeMain {
+    testableNativeTest {
       dependencies {
-        implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:${versions.kotlinCoroutines}-native-mt") {
-          force = true
-        }
+        implementation projects.drivers.nativeDriver
       }
     }
-    nativeTest {
-      dependencies {
-        implementation project(':drivers:native-driver')
-        implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:${versions.kotlinCoroutines}-native-mt") {
-          force = true
+  }
+
+  configure([targets.iosX64, targets.iosArm64, targets.tvosX64, targets.tvosArm64, targets.watchosX64, targets.watchosArm32, targets.watchosArm64, targets.macosX64, targets.macosArm64, targets.iosSimulatorArm64, targets.watchosSimulatorArm64, targets.tvosSimulatorArm64]) {
+    binaries.configureEach {
+      // we only need to link sqlite for the test binaries
+      if (outputKind == NativeOutputKind.TEST) {
+        linkerOpts += ["-lsqlite3"]
+      }
+    }
+  }
+
+  configure([targets.linuxX64]) {
+    compilations.configureEach {
+      if (name == "test") {
+        cinterops {
+          sqlite {
+            // use sqlite3 amalgamation on linux tests to prevent linking issues on new linux distros with dependency libraries which are to recent (for example glibc)
+            // see: https://github.com/touchlab/SQLiter/pull/38#issuecomment-867171789
+            defFile = new File("$rootDir/libs/linux/cinterop/sqlite3.def")
+          }
         }
       }
     }
   }
 
-  js {
-    nodejs {
-      testTask {
-        useMocha {
-          timeout = "5s"
-        }
+  configure([targets.mingwX64]) {
+    binaries.configureEach {
+      // we only need to link sqlite for the test binaries
+      if (outputKind == NativeOutputKind.TEST) {
+        linkerOpts += ["-Lc:\\msys64\\mingw64\\lib", "-L$rootDir\\libs\\windows".toString(), "-lsqlite3"]
       }
-    }
-    browser {
-      testTask {
-        useMocha {
-          timeout = "5s"
-        }
-      }
-    }
-    compilations.all {
-      kotlinOptions {
-        moduleKind = "umd"
-        sourceMap = true
-        sourceMapEmbedSources = null
-      }
-    }
-  }
-
-  targetFromPreset(presets.jvm, 'jvm')
-  targetFromPreset(presets.iosX64, 'iosX64')
-  targetFromPreset(presets.iosArm32, 'iosArm32')
-  targetFromPreset(presets.iosArm64, 'iosArm64')
-  targetFromPreset(presets.tvosX64, 'tvosX64')
-  targetFromPreset(presets.tvosArm64, 'tvosArm64')
-  targetFromPreset(presets.watchosX86, 'watchosX86')
-  targetFromPreset(presets.watchosX64, 'watchosX64')
-  targetFromPreset(presets.watchosArm32, 'watchosArm32')
-  targetFromPreset(presets.watchosArm64, 'watchosArm64')
-  targetFromPreset(presets.macosX64, 'macosX64')
-
-  configure([targets.iosX64, targets.iosArm32, targets.iosArm64, targets.tvosX64, targets.tvosArm64, targets.watchosX86, targets.watchosX64, targets.watchosArm32, targets.watchosArm64, targets.macosX64]) {
-    compilations.main.source(sourceSets.nativeMain)
-    compilations.test {
-      source(sourceSets.nativeTest)
-      kotlinOptions.freeCompilerArgs += ['-linker-options', '-lsqlite3']
-    }
-  }
-
-  sourceSets.matching { it.name.endsWith("Test") }.all {
-    it.languageSettings {
-      useExperimentalAnnotation('kotlin.time.ExperimentalTime')
-      useExperimentalAnnotation('kotlinx.coroutines.ExperimentalCoroutinesApi')
     }
   }
 }

@@ -1,26 +1,19 @@
-buildscript {
-  apply from: "${projectDir.absolutePath}/../buildscript.gradle"
-}
-
-apply plugin: 'org.jetbrains.kotlin.jvm'
-apply plugin: 'com.squareup.sqldelight'
-
-repositories {
-  maven {
-    url "file://${projectDir.absolutePath}/../../../../build/localMaven"
-  }
-  mavenCentral()
+plugins {
+  alias(libs.plugins.kotlin.jvm)
+  alias(libs.plugins.sqldelight)
 }
 
 sqldelight {
-  QueryWrapper {
-    packageName = "com.squareup.sqldelight.integration"
-    deriveSchemaFromMigrations = true
+  databases {
+    QueryWrapper {
+      packageName = "app.cash.sqldelight.integration"
+      deriveSchemaFromMigrations = true
+    }
   }
 }
 
 dependencies {
-  implementation deps.sqliteJdbc
-  implementation "com.squareup.sqldelight:sqlite-driver:${com.squareup.sqldelight.VersionKt.VERSION}"
-  implementation deps.truth
+  implementation libs.sqliteJdbc
+  implementation "app.cash.sqldelight:sqlite-driver:${app.cash.sqldelight.VersionKt.VERSION}"
+  implementation libs.truth
 }

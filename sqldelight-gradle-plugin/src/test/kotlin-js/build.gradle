@@ -1,0 +1,20 @@
+plugins {
+  alias(libs.plugins.kotlin.js)
+  alias(libs.plugins.sqldelight)
+}
+
+kotlin {
+  js(IR) {
+    browser {
+      binaries.executable()
+    }
+  }
+}
+
+sqldelight {
+  databases {
+    Database {
+      packageName = "com.sample"
+    }
+  }
+}

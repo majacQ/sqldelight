@@ -1,10 +1,10 @@
-package com.squareup.sqldelight.integration
+package app.cash.sqldelight.integration
 
+import app.cash.sqldelight.Query
+import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
+import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver.Companion.IN_MEMORY
 import com.example.Database
 import com.google.common.truth.Truth.assertThat
-import com.squareup.sqldelight.Query
-import com.squareup.sqldelight.sqlite.driver.JdbcSqliteDriver
-import com.squareup.sqldelight.sqlite.driver.JdbcSqliteDriver.Companion.IN_MEMORY
 import org.junit.Before
 import org.junit.Test
 
@@ -22,11 +22,13 @@ class IntegrationTests {
     var timesNotified = 0
     val selectData = database.otherQueries.selectData()
 
-    selectData.addListener(object : Query.Listener {
-      override fun queryResultsChanged() {
-        timesNotified++
-      }
-    })
+    selectData.addListener(
+      object : Query.Listener {
+        override fun queryResultsChanged() {
+          timesNotified++
+        }
+      },
+    )
 
     assertThat(selectData.executeAsList()).containsExactly("first_value")
 

@@ -1,47 +1,7 @@
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-
-buildscript {
-  apply from: "$rootDir/../gradle/dependencies.gradle"
-
-  repositories {
-    mavenCentral()
-    google()
-    maven { url 'https://www.jetbrains.com/intellij-repository/releases' }
-    maven { url "https://cache-redirector.jetbrains.com/intellij-dependencies" }
-  }
-
-  dependencies {
-    classpath deps.plugins.kotlin
-    classpath deps.plugins.android
-    classpath "com.squareup.sqldelight:gradle-plugin"
-  }
-}
-
-apply from: "$rootDir/../gradle/dependencies.gradle"
-
-
-allprojects {
-  repositories {
-    mavenCentral()
-    google()
-    maven { url 'https://dl.bintray.com/kotlin/kotlinx' }
-  }
-
-  plugins.withId("org.jetbrains.kotlin.jvm") {
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
-  }
-
-  plugins.withId("com.android.library") {
-    extensions.getByName("android").compileOptions {
-      sourceCompatibility JavaVersion.VERSION_1_8
-      targetCompatibility JavaVersion.VERSION_1_8
-    }
-  }
-
-  tasks.withType(KotlinCompile).configureEach {
-    kotlinOptions {
-      jvmTarget = "1.8"
-    }
-  }
+plugins {
+  alias(libs.plugins.android.application) apply false
+  alias(libs.plugins.android.library) apply false
+  alias(libs.plugins.kotlin.multiplatform) apply false
+  alias(libs.plugins.kotlin.android) apply false
+  alias(libs.plugins.kotlin.native.cocoapods) apply false
 }

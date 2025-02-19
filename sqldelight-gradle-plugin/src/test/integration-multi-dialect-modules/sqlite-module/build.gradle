@@ -1,0 +1,13 @@
+plugins {
+  alias(libs.plugins.kotlin.jvm)
+  alias(libs.plugins.sqldelight)
+}
+
+sqldelight {
+  databases {
+    TestDb {
+      packageName = "com.example.sqlite.module"
+      dialect("app.cash.sqldelight:sqlite-3-35-dialect:${app.cash.sqldelight.VersionKt.VERSION}")
+    }
+  }
+}

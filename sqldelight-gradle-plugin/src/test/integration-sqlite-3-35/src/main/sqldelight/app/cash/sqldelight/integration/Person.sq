@@ -1,0 +1,58 @@
+CREATE TABLE person (
+  _id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+  first_name TEXT NOT NULL,
+  last_name TEXT NOT NULL
+);
+
+insertAndReturn1:
+INSERT INTO person
+VALUES (?, ?, ?)
+RETURNING first_name;
+
+insertAndReturnMany:
+INSERT INTO person
+VALUES (?, ?, ?)
+RETURNING _id, first_name;
+
+insertAndReturnAll:
+INSERT INTO person
+VALUES (?, ?, ?)
+RETURNING *;
+
+updateAndReturn1:
+UPDATE person
+SET last_name = ?
+WHERE last_name = ?
+RETURNING first_name;
+
+updateAndReturnMany:
+UPDATE person
+SET last_name = ?
+WHERE last_name = ?
+RETURNING _id, first_name;
+
+updateAndReturnAll:
+UPDATE person
+SET last_name = ?
+WHERE last_name = ?
+RETURNING *;
+
+deleteAndReturn1:
+DELETE FROM person
+WHERE last_name = ?
+RETURNING first_name;
+
+deleteAndReturnMany:
+DELETE FROM person
+WHERE last_name = ?
+RETURNING _id, first_name;
+
+deleteAndReturnAll:
+DELETE FROM person
+WHERE last_name = ?
+RETURNING *;
+
+performUpsert:
+INSERT INTO person (_id, first_name, last_name) VALUES (?, ?, ?)
+  ON CONFLICT(_id) DO UPDATE SET first_name=excluded.first_name, last_name=excluded.last_name
+  ON CONFLICT DO NOTHING;

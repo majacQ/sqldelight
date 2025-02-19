@@ -1,21 +1,15 @@
-buildscript {
-  apply from: "${projectDir.absolutePath}/../buildscript.gradle"
-}
-
-apply plugin: 'com.android.library'
-apply plugin: 'com.squareup.sqldelight'
-apply plugin: 'org.jetbrains.kotlin.android'
-
-repositories {
-  maven {
-    url "file://${projectDir.absolutePath}/../../../../build/localMaven"
-  }
+plugins {
+  alias(libs.plugins.android.library)
+  alias(libs.plugins.sqldelight)
+  alias(libs.plugins.kotlin.android)
 }
 
 android {
-  compileSdkVersion versions.compileSdk
+  namespace "com.example.sqldelight"
 
-  lintOptions {
+  compileSdk libs.versions.compileSdk.get() as int
+
+  lint {
     textReport true
   }
 }

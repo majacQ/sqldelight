@@ -1,12 +1,16 @@
-apply plugin: 'org.jetbrains.kotlin.multiplatform'
-apply plugin: 'org.jetbrains.kotlin.native.cocoapods'
-apply plugin: 'com.squareup.sqldelight'
+plugins {
+  alias(libs.plugins.kotlin.multiplatform)
+  alias(libs.plugins.kotlin.native.cocoapods)
+  id("app.cash.sqldelight")
+}
 
 archivesBaseName = 'sample-common'
 
 sqldelight {
-  HockeyDb {
-    packageName = "com.example.sqldelight.hockey"
+  databases {
+    HockeyDb {
+      packageName = "com.example.sqldelight.hockey"
+    }
   }
   linkSqlite = true
 }
@@ -14,52 +18,30 @@ sqldelight {
 version = 1.0
 
 kotlin {
+  applyDefaultHierarchyTemplate()
+  jvmToolchain(8)
+
   // Configure common.
   sourceSets.commonMain.dependencies {
-    implementation 'org.jetbrains.kotlin:kotlin-stdlib'
+    implementation 'app.cash.sqldelight:primitive-adapters'
   }
   sourceSets.commonTest.dependencies {
-    implementation 'org.jetbrains.kotlin:kotlin-test-common'
-    implementation 'org.jetbrains.kotlin:kotlin-test-annotations-common'
+    implementation 'org.jetbrains.kotlin:kotlin-test'
+    implementation libs.kotlin.coroutines.test
   }
 
   // Configure jvm.
   jvm()
   sourceSets.jvmTest.dependencies {
     implementation 'org.jetbrains.kotlin:kotlin-test-junit'
-    implementation "com.squareup.sqldelight:sqlite-driver"
-  }
-
-  // Configure web.
-  js {
-    useCommonJs()
-    browser {
-      testTask {
-        useMocha {
-          timeout = "5s"
-        }
-      }
-    }
-  }
-  sourceSets.jsMain.dependencies {
-    implementation 'org.jetbrains.kotlin:kotlin-stdlib-js'
-    implementation npm('dateformat', '3.0.3')
-  }
-  sourceSets.jsTest.dependencies {
-    implementation "org.jetbrains.kotlin:kotlin-test-js"
-    implementation deps.kotlin.coroutines.core
-    implementation "com.squareup.sqldelight:sqljs-driver"
+    implementation "app.cash.sqldelight:sqlite-driver"
   }
 
   // Configure iOS.
-  def sdkName = System.getenv("SDK_NAME")
-  if (sdkName != null && sdkName.startsWith("iphoneos")) {
-    iosArm64("ios")
-  } else {
-    iosX64("ios")
-  }
+  iosArm64()
+  iosX64()
   sourceSets.iosMain.dependencies {
-    implementation "com.squareup.sqldelight:native-driver"
+    implementation "app.cash.sqldelight:native-driver"
   }
 
   cocoapods {

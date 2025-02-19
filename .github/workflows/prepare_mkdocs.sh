@@ -4,34 +4,20 @@
 # https://squidfunk.github.io/mkdocs-material/
 # It requires Python to run.
 # Install the packages with the following command:
-# pip install -r requirements.txt
+# pip install --no-deps -r requirements.txt
 
 set -ex
 
 # Generate the API docs
-./gradlew dokkaGfm
+./gradlew :dokkaHtmlMultiModule
 
-# Dokka filenames like `-http-url/index.md` don't work well with MkDocs <title> tags.
-# Assign metadata to the file's first Markdown heading.
-# https://www.mkdocs.org/user-guide/writing-your-docs/#meta-data
-title_markdown_file() {
-  TITLE_PATTERN="s/^[#]+ *(.*)/title: \1 - SQLDelight/"
-  echo "---"                                                     > "$1.fixed"
-  cat $1 | sed -E "$TITLE_PATTERN" | grep "title: " | head -n 1 >> "$1.fixed"
-  echo "---"                                                    >> "$1.fixed"
-  echo                                                          >> "$1.fixed"
-  cat $1                                                        >> "$1.fixed"
-  mv "$1.fixed" "$1"
-}
-
+# Fix up some styling/functionality on the generated dokka HTML pages
 set +x
-for MARKDOWN_FILE in $(find docs/1.x/ -name '*.md'); do
-  echo $MARKDOWN_FILE
-  title_markdown_file $MARKDOWN_FILE
-done
+find docs/2.x/ -name '*.html' \
+  -exec perl -i~ -0777 -pe 's/<a href="(.*)">([\n\s]+)?(<span>)?([\n\s]+)?SQLDelight([\n\s]+)?(<\/span>)?([\n\s]+)?<\/a>/<a href="\/sqldelight\/'"$1"'"><span>SQLDelight<\/span><\/a>/g' {} \; \
+  -exec sed -i 's/<\/head>/<link rel="icon" href="\/sqldelight\/'"$1"'/images\/icon-cashapp.png"><\/head>/g' {} \;
 set -x
 
 # Copy in special files that GitHub wants in the project root.
-cp UPGRADING.md docs/upgrading.md
 cp CHANGELOG.md docs/changelog.md
 cp CONTRIBUTING.md docs/contributing.md

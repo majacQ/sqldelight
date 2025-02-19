@@ -1,0 +1,15 @@
+pluginManagement {
+    includeBuild("../build-logic-tests")
+}
+
+plugins {
+    id("sqldelightTests")
+}
+
+rootProject.name = 'derive-schema-no-queries'
+
+buildCache {
+  local {
+    directory = new File(rootDir, 'build-cache')
+  }
+}

@@ -1,30 +1,26 @@
-apply plugin: "com.vanniktech.maven.publish"
-apply plugin: "org.jetbrains.dokka"
-
-tasks.named("dokkaGfm").configure {
-  outputDirectory = file("$rootDir/docs/1.x")
-}
-
-mavenPublish {
-  releaseSigningEnabled = !getGpgKey().isEmpty()
-}
-
 publishing {
     repositories {
         maven {
             name = "installLocally"
             url = "${rootProject.buildDir}/localMaven"
         }
+        /**
+         * Want to push to an internal repository for testing?
+         * Set the following properties in ~/.gradle/gradle.properties.
+         *
+         * internalUrl=YOUR_INTERNAL_URL
+         * internalUsername=YOUR_USERNAME
+         * internalPassword=YOUR_PASSWORD
+         */
+        maven {
+          name = "internal"
+          url = providers.gradleProperty("internalUrl")
+          credentials(PasswordCredentials)
+        }
     }
 }
 
-def getGpgKey() {
-  return hasProperty('signingKey') ? signingKey : ""
-}
-
-signing {
-  def signingKey = getGpgKey()
-  if (!signingKey.isEmpty()) {
-    useInMemoryPgpKeys(signingKey, "")
-  }
+tasks.withType(AbstractArchiveTask).configureEach {
+    setPreserveFileTimestamps false
+    setReproducibleFileOrder true
 }

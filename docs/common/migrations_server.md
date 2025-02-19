@@ -6,9 +6,10 @@ services to read from:
 
 ```groovy
 sqldelight {
-  Database {
-    migrationOutputDirectory = file("$buildDir/resources/main/migrations")
-    migrationOutputFileFormat = ".sql" // Defaults to .sql
+  databases {
+    Database {
+      migrationOutputDirectory = layout.buildDirectory.dir("resources/main/migrations")
+      migrationOutputFileFormat = ".sql" // Defaults to .sql
   }
 }
 ```

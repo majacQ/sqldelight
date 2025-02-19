@@ -1,67 +1,49 @@
-buildscript {
-  apply from: "${projectDir.absolutePath}/../buildscript.gradle"
-}
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
 
-apply plugin: 'com.android.library'
-apply plugin: 'org.jetbrains.kotlin.android'
-apply plugin: 'com.squareup.sqldelight'
-
-repositories {
-  maven {
-    url "file://${projectDir.absolutePath}/../../../../build/localMaven"
-  }
-  mavenCentral()
-  google()
-  jcenter()
+plugins {
+  alias(libs.plugins.android.library)
+  alias(libs.plugins.kotlin.android)
+  alias(libs.plugins.sqldelight)
 }
 
 dependencies {
-  implementation deps.androidx.sqlite
-  implementation deps.androidx.sqliteFramework
+  implementation libs.androidx.sqlite
+  implementation libs.androidx.sqliteFramework
 
-  implementation "com.squareup.sqldelight:android-driver:${com.squareup.sqldelight.VersionKt.VERSION}"
+  implementation "app.cash.sqldelight:android-driver:${app.cash.sqldelight.VersionKt.VERSION}"
 
-  // TODO why don't these work when specified as androidTestImplementation?
-  implementation deps.support.test.runner
-  implementation deps.truth
+  androidTestImplementation libs.androidx.test.runner
+  androidTestImplementation libs.truth
 }
 
 sqldelight {
-  QueryWrapper {
-    
+  databases {
+    QueryWrapper {
+
+    }
   }
 }
 
 android {
-  compileSdkVersion versions.compileSdk
+  namespace "app.cash.sqldelight.integration"
+
+  compileSdk libs.versions.compileSdk.get() as int
 
   defaultConfig {
-    minSdkVersion versions.minSdk
+    minSdk libs.versions.minSdk.get() as int
 
-    testInstrumentationRunner 'android.support.test.runner.AndroidJUnitRunner'
+    testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
   }
 
-  lintOptions {
+  lint {
     tasks.lint.enabled false
   }
 
   packagingOptions {
     exclude 'LICENSE.txt'
   }
-
-  compileOptions {
-    targetCompatibility 1.8
-    sourceCompatibility 1.8
-  }
 }
 
-afterEvaluate {
-  tasks.withType(com.android.build.gradle.internal.tasks.AndroidTestTask).configureEach { task ->
-    task.doFirst {
-      logging.level = LogLevel.INFO
-    }
-    task.doLast {
-      logging.level = LogLevel.LIFECYCLE
-    }
-  }
+tasks.withType(KotlinCompilationTask.class).configureEach {
+  compilerOptions.jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_1_8)
 }

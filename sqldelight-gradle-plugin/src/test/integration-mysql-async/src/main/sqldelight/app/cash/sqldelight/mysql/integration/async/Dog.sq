@@ -1,0 +1,27 @@
+CREATE TABLE dog (
+  name VARCHAR(8) NOT NULL,
+  breed TEXT NOT NULL,
+  is_good BOOLEAN NOT NULL DEFAULT 1,
+  age INTEGER
+);
+
+insertDog:
+INSERT INTO dog
+VALUES (?, ?, DEFAULT, ?);
+
+insertDogAndReturnAll {
+INSERT INTO dog
+VALUES (?, ?, DEFAULT, ?);
+
+SELECT * FROM dog;
+}
+
+selectDogs:
+SELECT *
+FROM dog;
+
+selectDogsByBreedAndNames:
+SELECT *
+FROM dog
+WHERE breed = ?
+  AND name IN ?;

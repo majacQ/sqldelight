@@ -1,0 +1,10 @@
+pluginManagement {
+    includeBuild("../build-logic-tests")
+}
+
+plugins {
+    id("sqldelightTests")
+}
+
+include ':mysql-module'
+include ':sqlite-module'

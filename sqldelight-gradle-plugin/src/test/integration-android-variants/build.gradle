@@ -1,49 +1,50 @@
-buildscript {
-  apply from: "${projectDir.absolutePath}/../buildscript.gradle"
-}
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
 
-apply plugin: 'com.android.application'
-apply plugin: 'org.jetbrains.kotlin.android'
-apply plugin: 'com.squareup.sqldelight'
-
-repositories {
-  maven {
-    url "file://${projectDir.absolutePath}/../../../../build/localMaven"
-  }
-  mavenCentral()
-  google()
+plugins {
+  alias(libs.plugins.android.application)
+  alias(libs.plugins.kotlin.android)
+  alias(libs.plugins.sqldelight)
 }
 
 dependencies {
-  implementation deps.sqliteJdbc
-  implementation "com.squareup.sqldelight:sqlite-driver:${com.squareup.sqldelight.VersionKt.VERSION}"
-  implementation deps.truth
+  implementation libs.sqliteJdbc
+  implementation "app.cash.sqldelight:sqlite-driver:${app.cash.sqldelight.VersionKt.VERSION}"
+  implementation libs.truth
 }
 
 sqldelight {
-  QueryWrapper {
-    
+  databases {
+    QueryWrapper {
+
+    }
   }
 }
 
 android {
-  compileSdkVersion versions.compileSdk
+  namespace "app.cash.sqldelight.integration"
+
+  compileSdk libs.versions.compileSdk.get() as int
 
   defaultConfig {
-    minSdkVersion versions.minSdk
+    minSdk libs.versions.minSdk.get() as int
   }
 
-  lintOptions {
-    textOutput 'stdout'
+  lint {
+    textOutput file("$reportsDir/lint-results.txt")
     textReport true
   }
 
   packagingOptions {
     exclude 'LICENSE.txt'
   }
+}
 
-  compileOptions {
-    targetCompatibility 1.8
-    sourceCompatibility 1.8
+androidComponents {
+  beforeVariants(selector().withBuildType("release")) {
+    enable = project.properties["debugOnly"] != "true"
   }
+}
+
+tasks.withType(KotlinCompilationTask.class).configureEach {
+  compilerOptions.jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_1_8)
 }

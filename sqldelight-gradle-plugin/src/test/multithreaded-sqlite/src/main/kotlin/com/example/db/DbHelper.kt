@@ -1,8 +1,10 @@
 package com.example.db
 
+import app.cash.sqldelight.db.QueryResult
+import app.cash.sqldelight.db.SqlCursor
+import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
 import com.example.db.Database.Companion.Schema
 import com.example.db.Database.Companion.invoke
-import com.squareup.sqldelight.sqlite.driver.JdbcSqliteDriver
 import java.util.Properties
 
 /**
@@ -15,14 +17,14 @@ import java.util.Properties
  */
 class DbHelper(
   journalMode: String = "",
-  foreignKeys: Boolean = false
+  foreignKeys: Boolean = false,
 ) {
   val database: Database by lazy {
     if (journalMode.isNotEmpty()) {
       this.journalMode = journalMode
     }
     val currentVer = version
-    if (currentVer == 0) {
+    if (currentVer == 0L) {
       Schema.create(driver)
       version = Schema.version
       this.foreignKeys = foreignKeys
@@ -46,10 +48,13 @@ class DbHelper(
     JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY + "test.db", Properties())
   }
 
-  private var version: Int
+  private var version: Long
     get() {
-      val sqlCursor = driver.executeQuery(null, "PRAGMA user_version;", 0, null)
-      return sqlCursor.getLong(0)!!.toInt()
+      fun mapper(cursor: SqlCursor): QueryResult.Value<Long> {
+        check(cursor.next().value)
+        return QueryResult.Value(cursor.getLong(0)!!)
+      }
+      return driver.executeQuery(null, "PRAGMA user_version;", ::mapper, 0, null).value
     }
     set(value) {
       driver.execute(null, "PRAGMA user_version = $value;", 0, null)

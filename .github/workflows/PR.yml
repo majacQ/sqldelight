@@ -2,92 +2,174 @@ name: Test
 
 on:
   pull_request:
+    # Ensure paths-ignore match paths in PR-skip.yml
     paths-ignore:
       - 'docs/**'
       - '*.md'
+      - 'mkdocs.yml'
 
 jobs:
+  spotless:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version-file: .github/workflows/.ci-java-version
+      - run: ./gradlew spotlessCheck
+
   build:
     strategy:
+      # Ensure any changes to the matrix are also made in PR-skip.yml
       matrix:
-        os: [ macOS-latest, windows-latest, ubuntu-latest ]
-        job: [ instrumentation, test, gradle-plugin-tests, gradle-plugin-integrations ]
+        os: [ macOS-14, windows-latest, ubuntu-latest ]
+        job: [ instrumentation, test, gradle-plugin-tests ]
         exclude:
           - os: windows-latest
             job: instrumentation
           - os: windows-latest
             job: gradle-plugin-tests
-          - os: windows-latest
-            job: gradle-plugin-integrations
-          - os: macOS-latest
-            job: gradle-plugin-integrations
+          - os: ubuntu-latest
+            job: gradle-plugin-tests
+          - os: macOS-14
+            job: instrumentation
 
     runs-on: ${{matrix.os}}
+    permissions:
+      contents: read
 
     steps:
-      - name: Checkout the repo
-        uses: actions/checkout@v2
-      - name: Validate Gradle Wrapper
-        uses: gradle/wrapper-validation-action@v1
-      - name: Cache gradle
-        uses: actions/cache@v2.1.0
-        with:
-          path: ~/.gradle/caches
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
+      # https://github.com/actions/runner-images/issues/10511
+      # We only use Xcode 15.4, the default version
+      - name: Remove unused Xcode installations
+        run: |
+          df -hI /dev/disk3s1s1
+          find /Applications -type d -name "Xcode_*.app" | grep -v "Xcode_15.4.app" | xargs sudo rm -rf
+          df -hI /dev/disk3s1s1
+        if: matrix.os == 'macOS-14'
 
+      - name: Checkout the repo
+        uses: actions/checkout@v4
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version-file: .github/workflows/.ci-java-version
+      - name: Setup gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-disabled: true
+
+      # Linux tests
       - name: Run gradle tests
         if: matrix.os == 'ubuntu-latest' && matrix.job == 'test'
         run: |
-          ./gradlew build -x :sqldelight-idea-plugin:build -x :sqldelight-gradle-plugin:test --stacktrace
+          ./gradlew build -x :sqldelight-idea-plugin:build -x :sqldelight-gradle-plugin:test --stacktrace -x linuxX64Test -x dokkaHtml
       - name: Run gradle plugin tests
-        if: matrix.os == 'ubuntu-latest' && matrix.job == 'gradle-plugin-tests'
-        run: |
-          ./gradlew :sqldelight-gradle-plugin:test --tests="com.squareup.sqldelight.tests.*"
-          ./gradlew :sqldelight-gradle-plugin:test --tests="com.squareup.sqldelight.properties.*"
-      - name: Run gradle plugin integrations
-        if: matrix.os == 'ubuntu-latest' && matrix.job == 'gradle-plugin-integrations'
-        run: |
-          ./gradlew :sqldelight-gradle-plugin:test --tests="com.squareup.sqldelight.integrations.*"
-          ./gradlew :sqldelight-gradle-plugin:test --tests="com.squareup.sqldelight.dialect.*"
+        if: matrix.os == 'macOS-14' && matrix.job == 'gradle-plugin-tests'
+        run: ./gradlew :sqldelight-gradle-plugin:test :sqldelight-gradle-plugin:grammarkitTest --parallel -x dokkaHtml
 
       - name: Run the IntelliJ plugin
         if: matrix.os == 'ubuntu-latest' && matrix.job == 'instrumentation'
-        run: ./gradlew :sqldelight-idea-plugin:build --stacktrace
-      - name: Verify IntelliJ plugin
-        if: matrix.os == 'ubuntu-latest' && matrix.job == 'instrumentation'
-        run: |
-          ./gradlew :sqldelight-idea-plugin:runPluginVerifier
+        run: ./gradlew :sqldelight-idea-plugin:build --stacktrace -x dokkaHtml
 
+      # Windows tests
       - name: Run windows tests
         if: matrix.os == 'windows-latest'
-        run: ./gradlew mingwTest sqldelight-idea-plugin:check --stacktrace
+        run: ./gradlew mingwX64Test sqldelight-idea-plugin:check --stacktrace
 
+      - name: Run linux tests
+        if: matrix.os == 'ubuntu-latest' && matrix.job == 'test'
+        # not parallel otherwise NativeTransacterTest fails.
+        run: ./gradlew linuxX64Test --no-parallel -x dokkaHtml
+
+      # android tests
+      - name: Enable KVM group perms
+        if: matrix.os == 'ubuntu-latest' && matrix.job == 'instrumentation'
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
       - name: Run instrumentation tests
-        if: matrix.os == 'macOS-latest' && matrix.job == 'instrumentation'
+        if: matrix.os == 'ubuntu-latest' && matrix.job == 'instrumentation'
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 29
-          script: ./gradlew connectedCheck :sqldelight-gradle-plugin:build --stacktrace -PInstrumentation
-      - name: Run ios tests
-        if: matrix.os == 'macOS-latest' && matrix.job == 'test'
-        run: ./gradlew iosX64Test --stacktrace
-      - name: Build the sample
-        if: matrix.os == 'macOS-latest' && matrix.job == 'gradle-plugin-tests'
-        run: |
-          cd sample
-          ./gradlew build
+          api-level: 30
+          arch: x86
+          target: aosp_atd
+          profile: Nexus One
+          disk-size: 2048M
+          script: ./gradlew connectedCheck :sqldelight-gradle-plugin:instrumentationTest --stacktrace --parallel -x dokkaHtml
 
-      - name: Bundle the build report
-        if: failure()
-        run: find . -type d -name 'reports' | zip -@ -r build-reports.zip
-      - name: Upload the build report
-        if: failure()
-        uses: actions/upload-artifact@master
+      # ios tests
+      - name: Run ios tests
+        if: matrix.os == 'macOS-14' && matrix.job == 'test'
+        run: ./gradlew iosX64Test --stacktrace --parallel
+
+      - name: Check for changed files
+        run: test -z "$(git status --porcelain)"
+
+  verify_intellij:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    strategy:
+      matrix:
+        # https://plugins.jetbrains.com/docs/intellij/android-studio-releases-list.html
+        idea:
+          - '2023.2.5'   # IC / Iguana
+          - '2024.1'   # IC
+          - '2024.2'   # IC
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
         with:
-          name: error-report
-          path: build-reports.zip
+          distribution: 'zulu'
+          java-version-file: .github/workflows/.ci-java-version
+      - run: ./gradlew -DideaVersion=${{matrix.idea}} :sqldelight-idea-plugin:verifyPlugin
+
+  verify_intellij_check:
+    runs-on: ubuntu-latest
+
+    needs: verify_intellij
+    steps:
+      - name: Success!
+        run: echo "All IntelliJ plugin verification checks passed!"
+
+  buildSample:
+    runs-on: macos-14
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version-file: .github/workflows/.ci-java-version
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-cleanup: always
+      - run: ./gradlew -p sample build --stacktrace --parallel
+
+  buildWebSample:
+    runs-on: macos-14
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version-file: .github/workflows/.ci-java-version
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-cleanup: always
+      - run: ./gradlew -p sample-web kotlinUpgradeYarnLock build --stacktrace --parallel
 
 env:
-  GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.configureondemand=true -Dkotlin.incremental=false -Dorg.gradle.jvmargs="-Xmx4g -Xms128m -XX:MaxPermSize=4096m -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8 -XX:MaxMetaspaceSize=1024m"
+  GRADLE_OPTS: -Dorg.gradle.caching=true

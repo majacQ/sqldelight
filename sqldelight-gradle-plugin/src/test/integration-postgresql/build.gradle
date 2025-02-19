@@ -1,27 +1,20 @@
-buildscript {
-  apply from: "${projectDir.absolutePath}/../buildscript.gradle"
+plugins {
+  alias(libs.plugins.kotlin.jvm)
+  alias(libs.plugins.sqldelight)
 }
-
-apply plugin: 'org.jetbrains.kotlin.jvm'
-apply plugin: 'com.squareup.sqldelight'
 
 sqldelight {
-  MyDatabase {
-    packageName = "com.squareup.sqldelight.postgresql.integration"
-    dialect = "postgresql"
+  databases {
+    MyDatabase {
+      packageName = "app.cash.sqldelight.postgresql.integration"
+      dialect("app.cash.sqldelight:postgresql-dialect:${app.cash.sqldelight.VersionKt.VERSION}")
+    }
   }
-}
-
-repositories {
-  maven {
-    url "file://${projectDir.absolutePath}/../../../../build/localMaven"
-  }
-  mavenCentral()
 }
 
 dependencies {
-  implementation "org.postgresql:postgresql:42.2.12"
-  implementation "org.testcontainers:postgresql:1.15.2"
-  implementation "com.squareup.sqldelight:jdbc-driver:${com.squareup.sqldelight.VersionKt.VERSION}"
-  implementation deps.truth
+  implementation libs.postgresJdbc
+  implementation libs.testContainers.postgres
+  implementation "app.cash.sqldelight:jdbc-driver:${app.cash.sqldelight.VersionKt.VERSION}"
+  implementation libs.truth
 }

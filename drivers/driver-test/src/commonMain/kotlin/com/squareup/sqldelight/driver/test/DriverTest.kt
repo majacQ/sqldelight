@@ -1,14 +1,15 @@
 package com.squareup.sqldelight.driver.test
 
-import com.squareup.sqldelight.Transacter
-import com.squareup.sqldelight.TransacterImpl
-import com.squareup.sqldelight.db.SqlDriver
-import com.squareup.sqldelight.db.SqlDriver.Schema
-import com.squareup.sqldelight.db.SqlPreparedStatement
-import com.squareup.sqldelight.db.use
-import com.squareup.sqldelight.internal.Atomic
-import com.squareup.sqldelight.internal.getValue
-import com.squareup.sqldelight.internal.setValue
+import app.cash.sqldelight.Transacter
+import app.cash.sqldelight.TransacterImpl
+import app.cash.sqldelight.db.AfterVersion
+import app.cash.sqldelight.db.QueryResult
+import app.cash.sqldelight.db.SqlCursor
+import app.cash.sqldelight.db.SqlDriver
+import app.cash.sqldelight.db.SqlPreparedStatement
+import app.cash.sqldelight.db.SqlSchema
+import co.touchlab.stately.concurrency.AtomicReference
+import co.touchlab.stately.concurrency.value
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -19,10 +20,10 @@ import kotlin.test.assertTrue
 
 abstract class DriverTest {
   protected lateinit var driver: SqlDriver
-  protected val schema = object : Schema {
-    override val version: Int = 1
+  protected val schema = object : SqlSchema<QueryResult.Value<Unit>> {
+    override val version: Long = 1
 
-    override fun create(driver: SqlDriver) {
+    override fun create(driver: SqlDriver): QueryResult.Value<Unit> {
       driver.execute(
         0,
         """
@@ -30,8 +31,8 @@ abstract class DriverTest {
               |  id INTEGER PRIMARY KEY,
               |  value TEXT
               |);
-            """.trimMargin(),
-        0
+        """.trimMargin(),
+        0,
       )
       driver.execute(
         1,
@@ -43,153 +44,172 @@ abstract class DriverTest {
               |  blob_value BLOB,
               |  real_value REAL
               |);
-            """.trimMargin(),
-        0
+        """.trimMargin(),
+        0,
       )
+      return QueryResult.Unit
     }
 
     override fun migrate(
       driver: SqlDriver,
-      oldVersion: Int,
-      newVersion: Int
-    ) {
-      // No-op.
-    }
+      oldVersion: Long,
+      newVersion: Long,
+      vararg callbacks: AfterVersion,
+    ) = QueryResult.Unit
   }
-  private var transacter by Atomic<Transacter?>(null)
+  private var transacter = AtomicReference<Transacter?>(null)
 
-  abstract fun setupDatabase(schema: Schema): SqlDriver
+  abstract fun setupDatabase(schema: SqlSchema<QueryResult.Value<Unit>>): SqlDriver
 
   private fun changes(): Long? {
     // wrap in a transaction to ensure read happens on transaction thread/connection
-    return transacter!!.transactionWithResult {
-      driver.executeQuery(null, "SELECT changes()", 0).use {
+    return transacter.value!!.transactionWithResult {
+      val mapper: (SqlCursor) -> QueryResult<Long?> = {
         it.next()
-        it.getLong(0)
+        QueryResult.Value(it.getLong(0))
       }
+      driver.executeQuery(null, "SELECT changes()", mapper, 0).value
     }
   }
 
   @BeforeTest fun setup() {
     driver = setupDatabase(schema = schema)
-    transacter = object : TransacterImpl(driver) {}
+    transacter.value = object : TransacterImpl(driver) {}
   }
 
   @AfterTest fun tearDown() {
-    transacter = null
+    transacter.value = null
     driver.close()
   }
 
-  @Test fun `insert can run multiple times`() {
+  @Test
+  fun insertCanRunMultipleTimes() {
     val insert = { binders: SqlPreparedStatement.() -> Unit ->
       driver.execute(2, "INSERT INTO test VALUES (?, ?);", 2, binders)
     }
-    val query = {
-      driver.executeQuery(3, "SELECT * FROM test", 0)
+    fun query(mapper: (SqlCursor) -> QueryResult<Unit>) {
+      driver.executeQuery(3, "SELECT * FROM test", mapper, 0)
     }
 
-    query().use {
-      assertFalse(it.next())
+    query {
+      assertFalse(it.next().value)
+      QueryResult.Unit
     }
 
     insert {
-      bindLong(1, 1)
-      bindString(2, "Alec")
+      bindLong(0, 1)
+      bindString(1, "Alec")
     }
 
-    query().use {
-      assertTrue(it.next())
-      assertFalse(it.next())
+    query {
+      assertTrue(it.next().value)
+      assertFalse(it.next().value)
+      QueryResult.Unit
     }
 
     assertEquals(1, changes())
 
-    query().use {
-      assertTrue(it.next())
+    query {
+      assertTrue(it.next().value)
       assertEquals(1, it.getLong(0))
       assertEquals("Alec", it.getString(1))
+      QueryResult.Unit
     }
 
     insert {
-      bindLong(1, 2)
-      bindString(2, "Jake")
+      bindLong(0, 2)
+      bindString(1, "Jake")
     }
     assertEquals(1, changes())
 
-    query().use {
-      assertTrue(it.next())
+    query {
+      assertTrue(it.next().value)
       assertEquals(1, it.getLong(0))
       assertEquals("Alec", it.getString(1))
-      assertTrue(it.next())
+      assertTrue(it.next().value)
       assertEquals(2, it.getLong(0))
       assertEquals("Jake", it.getString(1))
+      QueryResult.Unit
     }
 
     driver.execute(5, "DELETE FROM test", 0)
     assertEquals(2, changes())
 
-    query().use {
-      assertFalse(it.next())
+    query {
+      assertFalse(it.next().value)
+      QueryResult.Unit
     }
   }
 
-  @Test fun `query can run multiple times`() {
+  @Test
+  fun queryCanRunMultipleTimes() {
     val insert = { binders: SqlPreparedStatement.() -> Unit ->
       driver.execute(2, "INSERT INTO test VALUES (?, ?);", 2, binders)
     }
 
     insert {
-      bindLong(1, 1)
-      bindString(2, "Alec")
+      bindLong(0, 1)
+      bindString(1, "Alec")
     }
     assertEquals(1, changes())
     insert {
-      bindLong(1, 2)
-      bindString(2, "Jake")
+      bindLong(0, 2)
+      bindString(1, "Jake")
     }
     assertEquals(1, changes())
 
-    val query = { binders: SqlPreparedStatement.() -> Unit ->
-      driver.executeQuery(6, "SELECT * FROM test WHERE value = ?", 1, binders)
+    fun query(binders: SqlPreparedStatement.() -> Unit, mapper: (SqlCursor) -> QueryResult<Unit>) {
+      driver.executeQuery(6, "SELECT * FROM test WHERE value = ?", mapper, 1, binders)
     }
-    query {
-      bindString(1, "Jake")
-    }.use {
-      assertTrue(it.next())
-      assertEquals(2, it.getLong(0))
-      assertEquals("Jake", it.getString(1))
-    }
+
+    query(
+      binders = {
+        bindString(0, "Jake")
+      },
+      mapper = {
+        assertTrue(it.next().value)
+        assertEquals(2, it.getLong(0))
+        assertEquals("Jake", it.getString(1))
+        QueryResult.Unit
+      },
+    )
 
     // Second time running the query is fine
-    query {
-      bindString(1, "Jake")
-    }.use {
-      assertTrue(it.next())
-      assertEquals(2, it.getLong(0))
-      assertEquals("Jake", it.getString(1))
-    }
+    query(
+      binders = {
+        bindString(0, "Jake")
+      },
+      mapper = {
+        assertTrue(it.next().value)
+        assertEquals(2, it.getLong(0))
+        assertEquals("Jake", it.getString(1))
+        QueryResult.Unit
+      },
+    )
   }
 
-  @Test fun `SqlResultSet getters return null if the column values are NULL`() {
+  @Test fun sqlResultSetGettersReturnNullIfTheColumnValuesAreNULL() {
     val insert = { binders: SqlPreparedStatement.() -> Unit ->
       driver.execute(7, "INSERT INTO nullability_test VALUES (?, ?, ?, ?, ?);", 5, binders)
     }
     insert {
-      bindLong(1, 1)
-      bindLong(2, null)
-      bindString(3, null)
-      bindBytes(4, null)
-      bindDouble(5, null)
+      bindLong(0, 1)
+      bindLong(1, null)
+      bindString(2, null)
+      bindBytes(3, null)
+      bindDouble(4, null)
     }
     assertEquals(1, changes())
 
-    driver.executeQuery(8, "SELECT * FROM nullability_test", 0).use {
-      assertTrue(it.next())
+    val mapper: (SqlCursor) -> QueryResult<Unit> = {
+      assertTrue(it.next().value)
       assertEquals(1, it.getLong(0))
       assertNull(it.getLong(1))
       assertNull(it.getString(2))
       assertNull(it.getBytes(3))
       assertNull(it.getDouble(4))
+      QueryResult.Unit
     }
+    driver.executeQuery(8, "SELECT * FROM nullability_test", mapper, 0)
   }
 }

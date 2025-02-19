@@ -1,15 +1,21 @@
 package com.example.sqldelight.hockey
 
+import app.cash.sqldelight.driver.native.NativeSqliteDriver
 import com.example.sqldelight.hockey.data.Db
 import com.example.sqldelight.hockey.data.Schema
-import com.squareup.sqldelight.drivers.native.NativeSqliteDriver
 
-actual fun createDriver() {
-  Db.dbSetup(NativeSqliteDriver(Schema, "sampledb"))
+actual suspend fun createDriver() {
+  Db.dbSetup(
+    NativeSqliteDriver(Schema, "sampledb", onConfiguration = {
+      it.copy(
+        inMemory = true,
+      )
+    }),
+  )
 }
 
-actual fun closeDriver() {
+actual suspend fun closeDriver() {
   Db.dbClear()
 }
 
-actual fun BaseTest.getDb(): HockeyDb = Db.instance
+actual fun getDb(): HockeyDb = Db.instance

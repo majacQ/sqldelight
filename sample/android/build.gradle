@@ -1,16 +1,24 @@
-apply plugin: 'com.android.application'
-apply plugin: 'org.jetbrains.kotlin.android'
+plugins {
+  alias(libs.plugins.android.application)
+  alias(libs.plugins.kotlin.android)
+}
+
+kotlin.jvmToolchain {
+  languageVersion.set(JavaLanguageVersion.of(8))
+  vendor.set(JvmVendorSpec.AZUL)
+}
 
 android {
-  compileSdkVersion versions.compileSdk
+  compileSdk libs.versions.compileSdk.get() as int
+  namespace = "com.example.sqldelight.hockey"
 
-  lintOptions {
-    textOutput 'stdout'
+  lint {
+    textOutput file("$reportsDir/lint-results.txt")
   }
 
   defaultConfig {
-    minSdkVersion 21
-    targetSdkVersion versions.compileSdk
+    minSdk 21
+    targetSdk libs.versions.compileSdk.get() as int
 
     applicationId 'com.example.sqldelight.hockey'
 
@@ -33,17 +41,12 @@ android {
       signingConfig signingConfigs.debug
     }
   }
-
-  compileOptions {
-    sourceCompatibility 1.8
-    targetCompatibility 1.8
-  }
 }
 
 dependencies {
-  implementation project(':common')
+  implementation projects.common
 
-  implementation deps.androidx.recyclerView
+  implementation libs.androidx.recyclerView
 
-  implementation "com.squareup.sqldelight:android-driver"
+  implementation "app.cash.sqldelight:android-driver"
 }

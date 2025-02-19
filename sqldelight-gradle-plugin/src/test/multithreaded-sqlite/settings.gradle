@@ -1,1 +1,9 @@
+pluginManagement {
+    includeBuild("../build-logic-tests")
+}
+
+plugins {
+    id("sqldelightTests")
+}
+
 rootProject.name = 'sqldelight-bug-sample'

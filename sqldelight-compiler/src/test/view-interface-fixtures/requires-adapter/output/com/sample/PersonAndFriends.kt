@@ -6,17 +6,9 @@ import kotlin.Double
 import kotlin.String
 
 public data class PersonAndFriends(
-  public val full_name: String,
+  public val full_name: String?,
   public val friends: List<Person>?,
-  public val shhh_its_secret: @Redacted String,
-  public val casted: Double
-) {
-  public override fun toString(): String = """
-  |PersonAndFriends [
-  |  full_name: $full_name
-  |  friends: $friends
-  |  shhh_its_secret: $shhh_its_secret
-  |  casted: $casted
-  |]
-  """.trimMargin()
-}
+  @Redacted
+  public val shhh_its_secret: String,
+  public val casted: Double,
+)

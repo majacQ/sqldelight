@@ -1,2 +1,9 @@
-rootProject.name = 'sqldelight-mysql-integration'
+pluginManagement {
+    includeBuild("../build-logic-tests")
+}
 
+plugins {
+    id("sqldelightTests")
+}
+
+rootProject.name = 'sqldelight-mysql-integration'

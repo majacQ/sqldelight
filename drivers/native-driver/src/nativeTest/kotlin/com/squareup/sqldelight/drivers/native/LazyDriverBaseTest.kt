@@ -1,12 +1,16 @@
 package com.squareup.sqldelight.drivers.native
 
+import app.cash.sqldelight.TransacterImpl
+import app.cash.sqldelight.db.AfterVersion
+import app.cash.sqldelight.db.QueryResult
+import app.cash.sqldelight.db.SqlDriver
+import app.cash.sqldelight.db.SqlSchema
+import app.cash.sqldelight.driver.native.NativeSqliteDriver
+import app.cash.sqldelight.driver.native.wrapConnection
 import co.touchlab.sqliter.DatabaseConfiguration
 import co.touchlab.sqliter.DatabaseFileContext.deleteDatabase
 import co.touchlab.sqliter.DatabaseManager
 import co.touchlab.sqliter.createDatabaseManager
-import co.touchlab.stately.freeze
-import com.squareup.sqldelight.TransacterImpl
-import com.squareup.sqldelight.db.SqlDriver
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 
@@ -21,11 +25,7 @@ abstract class LazyDriverBaseTest {
   }
 
   protected val transacter: TransacterImpl
-    get() {
-      val t = transacterInternal
-      t.freeze()
-      return t
-    }
+    get() = transacterInternal
 
   @BeforeTest fun setup() {
     driver = setupDatabase(schema = defaultSchema())
@@ -35,11 +35,11 @@ abstract class LazyDriverBaseTest {
     driver.close()
   }
 
-  protected fun defaultSchema(): SqlDriver.Schema {
-    return object : SqlDriver.Schema {
-      override val version: Int = 1
+  protected fun defaultSchema(): SqlSchema<QueryResult.Value<Unit>> {
+    return object : SqlSchema<QueryResult.Value<Unit>> {
+      override val version: Long = 1
 
-      override fun create(driver: SqlDriver) {
+      override fun create(driver: SqlDriver): QueryResult.Value<Unit> {
         driver.execute(
           20,
           """
@@ -47,8 +47,8 @@ abstract class LazyDriverBaseTest {
                   |  id INTEGER PRIMARY KEY,
                   |  value TEXT
                   |);
-                """.trimMargin(),
-          0
+          """.trimMargin(),
+          0,
         )
         driver.execute(
           30,
@@ -60,18 +60,18 @@ abstract class LazyDriverBaseTest {
                   |  blob_value BLOB,
                   |  real_value REAL
                   |);
-                """.trimMargin(),
-          0
+          """.trimMargin(),
+          0,
         )
+        return QueryResult.Unit
       }
 
       override fun migrate(
         driver: SqlDriver,
-        oldVersion: Int,
-        newVersion: Int
-      ) {
-        // No-op.
-      }
+        oldVersion: Long,
+        newVersion: Long,
+        vararg callbacks: AfterVersion,
+      ) = QueryResult.Unit
     }
   }
 
@@ -81,8 +81,8 @@ abstract class LazyDriverBaseTest {
   }
 
   private fun setupDatabase(
-    schema: SqlDriver.Schema,
-    config: DatabaseConfiguration = defaultConfiguration(schema)
+    schema: SqlSchema<QueryResult.Value<Unit>>,
+    config: DatabaseConfiguration = defaultConfiguration(schema),
   ): NativeSqliteDriver {
     deleteDatabase(config.name!!)
     // This isn't pretty, but just for test
@@ -90,7 +90,7 @@ abstract class LazyDriverBaseTest {
     return NativeSqliteDriver(manager!!)
   }
 
-  protected fun defaultConfiguration(schema: SqlDriver.Schema): DatabaseConfiguration {
+  protected fun defaultConfiguration(schema: SqlSchema<QueryResult.Value<Unit>>): DatabaseConfiguration {
     return DatabaseConfiguration(
       name = "testdb",
       version = 1,
@@ -100,7 +100,7 @@ abstract class LazyDriverBaseTest {
         }
       },
       extendedConfig = DatabaseConfiguration.Extended(busyTimeout = 20_000),
-      inMemory = true
+      inMemory = true,
     )
   }
 }

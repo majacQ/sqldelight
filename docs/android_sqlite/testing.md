@@ -3,11 +3,18 @@ the [JVM driver](https://github.com/square/sqldelight#JVM), enabling you to test
 database without needing an Android emulator or physical device. To do that use the jvm SQLite
 driver:
 
-```groovy
-dependencies {
-  testImplementation 'com.squareup.sqldelight:sqlite-driver:{{ versions.sqldelight }}'
-}
-```
+=== "Kotlin"
+    ```kotlin
+    dependencies {
+      testImplementation("app.cash.sqldelight:sqlite-driver:{{ versions.sqldelight }}")
+    }
+    ```
+=== "Groovy"
+    ```groovy
+    dependencies {
+      testImplementation "app.cash.sqldelight:sqlite-driver:{{ versions.sqldelight }}"
+    }
+    ```
 
 ```kotlin
 // When your test needs a driver
@@ -21,9 +28,9 @@ If you are using the SQLite that comes bundled with Android (rather than shippin
 
 ```groovy
 dependencies {
-  testImplementation('org.xerial:sqlite-jdbc:3.8.10.2') {
+  testImplementation('org.xerial:sqlite-jdbc') {
     // Override the version of sqlite used by sqlite-driver to match Android API 23
-    force = true
+    version { strictly('3.8.10.2') }
   }
 }
 ```

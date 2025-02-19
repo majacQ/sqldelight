@@ -1,26 +1,19 @@
-buildscript {
-    apply from: "${projectDir.absolutePath}/../buildscript.gradle"
+plugins {
+    alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.sqldelight)
 }
-
-apply plugin: 'org.jetbrains.kotlin.jvm'
-apply plugin: 'com.squareup.sqldelight'
 
 sqldelight {
+  databases {
     MyDatabase {
-        packageName = "com.squareup.sqldelight.hsql.integration"
-        dialect = "hsql"
+        packageName = "app.cash.sqldelight.hsql.integration"
+        dialect("app.cash.sqldelight:hsql-dialect:${app.cash.sqldelight.VersionKt.VERSION}")
     }
-}
-
-repositories {
-    maven {
-        url "file://${projectDir.absolutePath}/../../../../build/localMaven"
-    }
-    mavenCentral()
+  }
 }
 
 dependencies {
-    implementation "org.hsqldb:hsqldb:2.5.0"
-    implementation "com.squareup.sqldelight:jdbc-driver:${com.squareup.sqldelight.VersionKt.VERSION}"
-    implementation deps.truth
+    implementation "org.hsqldb:hsqldb:2.7.3"
+    implementation "app.cash.sqldelight:jdbc-driver:${app.cash.sqldelight.VersionKt.VERSION}"
+    implementation libs.truth
 }

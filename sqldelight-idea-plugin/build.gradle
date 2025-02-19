@@ -1,48 +1,71 @@
-import org.jetbrains.intellij.tasks.RunPluginVerifierTask.FailureLevel
+import org.jetbrains.intellij.platform.gradle.tasks.VerifyPluginTask.FailureLevel
+import app.cash.sqldelight.toolchain.BugsnagKey
 
-apply plugin: 'org.jetbrains.intellij'
-apply plugin: 'org.jetbrains.kotlin.jvm'
-apply plugin: "org.jetbrains.changelog"
-
-intellij {
-  updateSinceUntilBuild false
-  version "IC-${versions.idea}"
-  pluginName = 'SQLDelight'
-  plugins = [
-      "org.jetbrains.kotlin:1.4.21-release-IJ2020.1-1",
-      "gradle",
-      "com.intellij.java",
-      "Groovy",
-      "properties",
-  ]
-  if (!project.version.endsWith("SNAPSHOT")) {
-    patchPluginXml {
-      changeNotes({ changelog.get(project.version).toHTML() })
-    }
-  } else {
-    patchPluginXml {
-      version = "$VERSION_NAME-${System.currentTimeMillis()}"
-    }
-  }
-  // Uncomment to test against Android Studio
-  // alternativeIdePath = '/Applications/Android Studio.app'
+plugins {
+  alias(libs.plugins.intellij)
+  alias(libs.plugins.kotlin.jvm)
+  alias(libs.plugins.changelog)
+  alias(libs.plugins.ksp)
+  id("app.cash.sqldelight.toolchain.compiler")
 }
 
-runPluginVerifier {
-  ideVersions = [
-      "IC-2020.1.4",
-      "IC-2020.2.4",
-      "IC-2020.3.2",
-      "IC-2021.1",
-  ]
+intellijPlatform {
+  buildSearchableOptions = false
 
-  def customFailureLevel = FailureLevel.ALL
-  customFailureLevel.remove(FailureLevel.DEPRECATED_API_USAGES)
-  customFailureLevel.remove(FailureLevel.EXPERIMENTAL_API_USAGES)
-  customFailureLevel.remove(FailureLevel.INTERNAL_API_USAGES)
-  customFailureLevel.remove(FailureLevel.NOT_DYNAMIC)
+  pluginConfiguration {
+    name = 'SQLDelight'
+    dependencies {
+      intellijPlatform {
+        intellijIdeaCommunity(libs.versions.idea, false)
+        bundledPlugin("org.jetbrains.kotlin")
+        bundledPlugin("com.intellij.gradle")
+        bundledPlugin("com.intellij.java")
+        bundledPlugin("org.jetbrains.android")
 
-  setFailureLevel(customFailureLevel)
+        pluginVerifier()
+        zipSigner()
+        instrumentationTools()
+
+        testFramework(org.jetbrains.intellij.platform.gradle.TestFrameworkType.Platform.INSTANCE, libs.versions.idea.get())
+        testFramework(org.jetbrains.intellij.platform.gradle.TestFrameworkType.Plugin.Java.INSTANCE, libs.versions.idea.get())
+      }
+    }
+    if (!project.version.endsWith("SNAPSHOT")) {
+      tasks.named('patchPluginXml') {
+        changeNotes = provider { changelog.get(project.version).toHTML() }
+      }
+    } else {
+      tasks.named('patchPluginXml') {
+        version = "$VERSION_NAME-${System.currentTimeMillis()}"
+      }
+    }
+    ideaVersion {
+      sinceBuild.set("231.9392.1")
+      untilBuild.set(provider { null })
+    }
+  }
+  pluginVerification {
+    // See: the verify_intellij job in .github/workflows/PR.yml
+    def version = providers.systemProperty("ideaVersion").getOrElse(null)
+    if (version != null) {
+      ides {
+        ide(org.jetbrains.intellij.platform.gradle.IntelliJPlatformType.IntellijIdeaCommunity, version)
+      }
+    }
+
+    def customFailureLevel = FailureLevel.ALL
+    customFailureLevel.remove(FailureLevel.DEPRECATED_API_USAGES)
+    customFailureLevel.remove(FailureLevel.EXPERIMENTAL_API_USAGES)
+    customFailureLevel.remove(FailureLevel.INTERNAL_API_USAGES)
+    customFailureLevel.remove(FailureLevel.NOT_DYNAMIC)
+    customFailureLevel.remove(FailureLevel.SCHEDULED_FOR_REMOVAL_API_USAGES)
+
+    failureLevel = customFailureLevel
+  }
+}
+
+tasks.named('runIde') {
+  maxHeapSize = "4g"
 }
 
 changelog {
@@ -57,50 +80,39 @@ def getPluginToken() {
   return hasProperty('intellijPublishToken') ? intellijPublishToken : ""
 }
 
-publishPlugin {
+tasks.named('publishPlugin') {
   token = getPluginToken()
-  channels(isReleaseBuild() ? 'Stable' : 'EAP')
-}
-
-sourceSets {
-  main.java.srcDir "src/generated/kotlin"
+  channels = [isReleaseBuild() ? 'Stable' : 'EAP']
 }
 
 repositories {
-  maven { url = uri("https://repo.gradle.org/gradle/libs-releases") }
+  intellijPlatform {
+    defaultRepositories()
+  }
 }
 
 dependencies {
-  implementation project(':sqldelight-compiler')
+  ksp libs.moshiCodegen
 
-  implementation deps.kotlin.reflect
-  implementation deps.sqliteJdbc
-  implementation(deps.bugsnag) {
-    exclude group: "org.slf4j"
-  }
+  implementation projects.sqldelightCompiler
 
-  testImplementation deps.truth
-  testImplementation project(':test-util')
+  implementation libs.sqliteJdbc
+  implementation libs.bugsnag
+  implementation libs.picnic
+  implementation libs.moshi
+
+  testImplementation libs.truth
+  testImplementation libs.intellij.android
+  testImplementation projects.dialects.sqlite318
 }
 
-def getBugsnagKey() {
-  return hasProperty('SQLDELIGHT_BUGSNAG_KEY') ? SQLDELIGHT_BUGSNAG_KEY : ''
+configurations.named("runtimeClasspath") {
+  exclude group: "org.slf4j"
+  exclude group: "org.jetbrains.kotlin"
+  exclude group: "org.jetbrains.kotlinx", module: "kotlinx-coroutines"
 }
 
-task bugsnagKey {
-  def outputDir = file("src/generated/kotlin")
-  def versionFile = file("$outputDir/com/squareup/sqldelight/intellij/Bugsnag.kt")
-
-  inputs.property 'bugsnagKey', getBugsnagKey()
-  outputs.file(versionFile)
-
-  doLast {
-    versionFile.parentFile.mkdirs()
-    versionFile.text = """// Generated file. Do not edit!
-package com.squareup.sqldelight.intellij
-
-internal val BUGSNAG_KEY = "${getBugsnagKey()}"
-"""
-  }
+def bugsnagKey = tasks.register('bugsnagKey', BugsnagKey)
+sourceSets.main {
+  kotlin.srcDir(bugsnagKey)
 }
-tasks.named('compileKotlin').configure { dependsOn('bugsnagKey') }

@@ -1,19 +1,13 @@
-buildscript {
-  apply from: "${projectDir.absolutePath}/../buildscript.gradle"
-}
-
-apply plugin: 'org.jetbrains.kotlin.jvm'
-apply plugin: 'com.squareup.sqldelight'
-
-repositories {
-  maven {
-    url "file://${projectDir.absolutePath}/../../../../build/localMaven"
-  }
+plugins {
+  alias(libs.plugins.kotlin.jvm)
+  alias(libs.plugins.sqldelight)
 }
 
 sqldelight {
-  Database {
-    packageName = "com.example"
-    schemaOutputDirectory = file('src/main/sqldelight/databases')
+  databases {
+    Database {
+      packageName = "com.example"
+      schemaOutputDirectory = file('src/main/sqldelight/databases')
+    }
   }
 }

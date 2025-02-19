@@ -3,6 +3,7 @@
 If you'd like to retrieve columns as custom types you can specify a Kotlin type:
 
 ```sql
+import kotlin.String;
 import kotlin.collections.List;
 
 CREATE TABLE hockeyPlayer (
@@ -50,4 +51,14 @@ val queryWrapper: Database = Database(
     positionAdapter = EnumColumnAdapter()
   )
 )
+```
+
+## Value types
+
+SQLDelight can generate a value type for a column which wraps the underlying database type if requested:
+
+```sql
+CREATE TABLE hockeyPlayer (
+  id INT AS VALUE
+);
 ```
